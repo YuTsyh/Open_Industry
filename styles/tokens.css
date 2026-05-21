@@ -1,0 +1,62 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --surface: #ffffff;
+  --surface-soft: #eef3f8;
+  --surface-strong: #e3ebf5;
+  --ink: #0f172a;
+  --ink-inverse: #ffffff;
+  --muted: #62748a;
+  --soft: #94a3b8;
+  --line: #d8e2ee;
+  --line-strong: #bdcad9;
+  --navy: #0b1f3a;
+  --navy-2: #14355f;
+  --blue: #2563eb;
+  --teal: #0f9f8f;
+  --red: #d34a54;
+  --indigo: #3366cc;
+  --green: #16845f;
+  --amber: #b7791f;
+  --danger: #b42318;
+  --purple: #6d5bd0;
+  --tw: #0f9f8f;
+  --jp: #d34a54;
+  --us: #3366cc;
+  --active-bg: #0b1f3a;
+  --active-fg: #ffffff;
+  --selected-bg: #e8f1fb;
+  --selected-fg: #0b1f3a;
+  --focus: rgba(37, 99, 235, 0.2);
+  --shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --radius-lg: 22px;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #07111f;
+  --surface: #0d1b2d;
+  --surface-soft: #11253d;
+  --surface-strong: #1a314d;
+  --ink: #e8f0fb;
+  --ink-inverse: #06101e;
+  --muted: #9eb0c5;
+  --soft: #7589a2;
+  --line: #213854;
+  --line-strong: #315070;
+  --navy: #d8e8ff;
+  --navy-2: #a9c7ef;
+  --active-bg: #315f99;
+  --active-fg: #ffffff;
+  --selected-bg: #17304d;
+  --selected-fg: #e8f0fb;
+  --focus: rgba(96, 165, 250, 0.28);
+  --shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+  --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.24);
+}

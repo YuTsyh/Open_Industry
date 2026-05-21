@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IndustryTopo｜產業與公司供應鏈地圖</title>
+  <link rel="stylesheet" href="./styles/tokens.css">
+  <link rel="stylesheet" href="./styles/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#overview" data-route="overview" aria-label="IndustryTopo 總覽">
+        <span class="brand-mark">IT</span>
+        <span>IndustryTopo</span>
+      </a>
+
+      <div class="search-wrap">
+        <input id="globalSearch" class="global-search" type="search" placeholder="搜尋產業、公司、代號、技術…" autocomplete="off">
+        <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="搜尋建議"></div>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-button" type="button" aria-label="收藏清單">☆</button>
+        <button id="themeToggle" class="icon-button" type="button" aria-label="切換深色模式">◐</button>
+        <button class="login-button" type="button">登入</button>
+      </div>
+
+      <nav class="route-nav" aria-label="主要頁面">
+        <button class="route-button active" data-route="overview" type="button">總覽</button>
+        <button class="route-button" data-route="explorer" type="button">產業探索</button>
+        <button class="route-button" data-route="industry" type="button">產業詳情</button>
+        <button class="route-button" data-route="company" type="button">公司檔案</button>
+        <button class="route-button" data-route="technology" type="button">技術詳情</button>
+        <button class="route-button" data-route="components" type="button">元件集</button>
+      </nav>
+    </header>
+
+    <main id="appRoot" class="app-root" aria-live="polite"></main>
+
+    <nav class="mobile-bottom-nav" aria-label="行動版導覽">
+      <button class="active" data-route="overview" type="button">總覽</button>
+      <button data-route="explorer" type="button">探索</button>
+      <button data-route="industry" type="button">產業</button>
+      <button data-route="technology" type="button">技術</button>
+    </nav>
+  </div>
+
+  <aside id="drawer" class="drawer" aria-label="節點預覽" aria-hidden="true"></aside>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
