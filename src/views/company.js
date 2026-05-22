@@ -2,6 +2,7 @@ import { companies } from "../data.js";
 import { escapeHtml } from "../utils.js";
 import { confidenceBadge, marketBadge, techBadge } from "../components/badges.js";
 import { relationshipGraph } from "../components/maps.js";
+import { companyLiveFeedPanel } from "../components/liveFeeds.js";
 
 export function renderCompany(state) {
   const companyId = state.companyId || "tsmc";
@@ -37,6 +38,7 @@ export function renderCompany(state) {
           </div>
         </aside>
       </div>
+      ${companyLiveFeedPanel(company)}
       ${relationshipGraph(company, companyId)}
       ${renderCompanyTabs(company, state.companyTab || "role")}
       <footer class="disclaimer">For research and educational use only. Not investment advice. 本原型不含真實財務數據或即時價格。</footer>

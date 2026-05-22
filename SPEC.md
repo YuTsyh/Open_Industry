@@ -92,7 +92,9 @@ Selected states use dark navy backgrounds with white text to avoid the prior low
 
 ### `companies`
 
-Company objects live in `src/data.js`.
+Company objects live one file per company under `src/datasets/companies/<company-id>.js`.
+
+`src/datasets/companies/index.js` is a generated registry. Do not hand-maintain it for routine additions; run `node scripts/generate-company-registry.mjs` after adding a company file.
 
 Required fields:
 
@@ -336,12 +338,18 @@ styles/
 src/
   data.js
   datasets/
-    companies.js
+    companies/
+      README.md
+      index.js
+      <company-id>.js
     heatmap.js
     industries.js
+    liveFeeds.js
     markets.js
+    officialSources.js
     sources.js
     technologies.js
+    templates.js
   domain/
     crossIndustry.js
   utils.js
@@ -356,6 +364,8 @@ src/
     overviewModules.js
     panels.js
     technologyDetails.js
+    liveFeeds.js
+    officialEvidence.js
   views/
     index.js
     overview.js
@@ -364,6 +374,12 @@ src/
     company.js
     technology.js
     componentsView.js
+scripts/
+  generate-company-registry.mjs
+  validate-app.mjs
+server/
+  README.md
+  schema.sql
 SPEC.md
 ```
 
@@ -380,15 +396,22 @@ SPEC.md
 - `src/views/`: screen-level rendering grouped by route
 - `src/components.js` and `src/views.js`: stable re-export shims for future imports
 - `src/app.js`: state, routing, event handling, hover/click interactions
+- `scripts/generate-company-registry.mjs`: regenerates the explicit company import registry from one-file-per-company modules
+- `scripts/validate-app.mjs`: syntax, render, data contract, and layout-stability checks
+- `server/schema.sql`: future Postgres-compatible production schema sketch for live prices, filings, news, options, and normalized relationships
 - `SPEC.md`: product and implementation contract
 
 ## 8. Extension Rules
 
 ### Add a Company
 
-1. Add the company to `companies`.
-2. Reference it from an industry lane node.
-3. Add relationships through the node `related` array.
+1. Copy `companyTemplate` from `src/datasets/templates.js`.
+2. Create one new file under `src/datasets/companies/<company-id>.js`.
+3. Export exactly one named company constant from that file.
+4. Run `node scripts/generate-company-registry.mjs`.
+5. Attach the company id to an industry lane node and any relevant topology `related` arrays.
+6. Add official or market-source keys in `sources`; do not add unsourced claims.
+7. Configure `liveFeeds.price`, `liveFeeds.filings`, `liveFeeds.news`, and `liveFeeds.options` so future backend data can populate the same UI slots.
 
 ### Add an Industry
 
@@ -418,6 +441,43 @@ SPEC.md
 3. Add technology source keys to `officialEvidenceByTechnology`.
 4. Use official company, institution, product, or standards pages first; avoid unsourced media claims.
 5. Keep facts technical and qualitative unless licensed numerical data is added later.
+
+### Add a New Live Data Provider
+
+1. Add provider metadata to `src/datasets/liveFeeds.js`.
+2. Add or reuse source keys in `src/datasets/officialSources.js`.
+3. Point company `liveFeeds` entries at the provider source keys.
+4. Keep the frontend display generic: provider label, cadence, source quality, and readiness state.
+5. Put real ingestion, caching, authorization, and market-data license enforcement in a backend service.
+
+## 8.5 Future Backend / Database Recommendation
+
+The current project is a high-fidelity static prototype. It is the right shape for configurable UI, but not the right place to run live market ingestion directly.
+
+Recommended production architecture:
+
+- Keep this frontend project as the UI shell and dataset schema reference.
+- Add a backend API service beside it, either in the same repository under `server/` or as a separate service if deployment/lifecycle differs.
+- This repository now includes `server/schema.sql` as a trial production data contract. It is intentionally inert until a real backend service is added.
+- Use a database for normalized entities:
+  - `companies`
+  - `industries`
+  - `technologies`
+  - `company_industry_roles`
+  - `relationships`
+  - `official_sources`
+  - `daily_prices`
+  - `intraday_snapshots`
+  - `filings`
+  - `news_events`
+  - `option_chains`
+  - `option_open_interest`
+- Use ingestion jobs for licensed or official data:
+  - Taiwan: TWSE OpenAPI for market datasets, MOPS for filings/events.
+  - Japan: JPX J-Quants and JPX delayed API where licensed.
+  - U.S.: SEC EDGAR APIs for filings, Nasdaq/NYSE/Cboe/OCC or licensed vendors for market/options data.
+- Cache derived research fields such as exposure score, purity score, topology role, confidence, and source quality separately from raw market data.
+- Do not fetch exchange or options data directly from browser code. It creates licensing, rate-limit, API-key, CORS, and audit problems.
 
 ## 9. Content Policy
 
@@ -452,6 +512,15 @@ SPEC.md
 - Broadcom Tomahawk AI Ethernet switch silicon: https://investors.broadcom.com/news-releases/news-release-details/broadcom-ships-tomahawk-ultra-reimagining-ethernet-switch-hpc
 - Coherent 800G ZR/ZR+ transceiver: https://www.coherent.com/news/press-releases/coherent-unveils-industry-first-800g-zrzr-transceiver
 - Coherent TIA for 800G and 1.6T optical modules: https://www.coherent.com/news/press-releases/Coherent-launches-224gbps-quad-tia
+- TWSE OpenAPI: https://openapi.twse.com.tw/
+- MOPS public information observation system: https://mops.twse.com.tw/
+- JPX J-Quants API: https://www.jpx.co.jp/markets/other-data-services/j-quants-api/index.html
+- JPX 15-minute delayed stock price API: https://www.jpx.co.jp/english/markets/paid-info-equities/realtime/06.html
+- JPX Listed Company Search: https://www.jpx.co.jp/english/listing/co-search/
+- SEC EDGAR APIs: https://www.sec.gov/edgar/sec-api-documentation
+- OCC market data reports: https://www.theocc.com/market-data
+- Cboe U.S. options market data: https://www.cboe.com/en/data/market-data-services/us/options/
+- Nasdaq Data Link APIs: https://www.nasdaq.com/solutions/data-link-api
 
 ## 11. Verification Checklist
 
@@ -469,6 +538,13 @@ Before handoff:
 - Cross-industry dependency cards show evidence, companies, watch fields, and public source links.
 - Official evidence cards render on Overview and Industry Detail.
 - Technology Detail shows official reference links for mapped technologies.
+- Technology Detail reserves fixed process, source, bottleneck, and company-role slots to avoid layout jumps while switching technologies.
+- Technology Detail shows live-data readiness instead of uneven source-only rows.
+- Company Detail shows future price/news/options feed slots without fake live data.
+- Company data is split one file per company under `src/datasets/companies/`.
+- Company registry can be regenerated with `scripts/generate-company-registry.mjs`.
+- Future live data schema exists in `server/schema.sql`; browser code still uses static readiness slots only.
+- `scripts/validate-app.mjs` passes.
 - Technology process flow remains a stable horizontal row across step-count differences.
 - Supply-chain node hover highlights related nodes.
 - Supply-chain node click opens drawer.

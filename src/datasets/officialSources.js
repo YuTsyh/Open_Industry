@@ -1,4 +1,40 @@
 export const officialSources = {
+  twseOpenApi: {
+    label: "TWSE OpenAPI",
+    url: "https://openapi.twse.com.tw/"
+  },
+  mops: {
+    label: "MOPS public information observation system",
+    url: "https://mops.twse.com.tw/"
+  },
+  jpxJQuants: {
+    label: "JPX J-Quants API",
+    url: "https://www.jpx.co.jp/markets/other-data-services/j-quants-api/index.html"
+  },
+  jpxDelayedPriceApi: {
+    label: "JPX 15-minute delayed stock price API",
+    url: "https://www.jpx.co.jp/english/markets/paid-info-equities/realtime/06.html"
+  },
+  jpxListedCompanySearch: {
+    label: "JPX listed company search",
+    url: "https://www.jpx.co.jp/english/listing/co-search/"
+  },
+  secEdgar: {
+    label: "SEC EDGAR APIs",
+    url: "https://www.sec.gov/edgar/sec-api-documentation"
+  },
+  nasdaqDataLink: {
+    label: "Nasdaq Data Link APIs",
+    url: "https://www.nasdaq.com/solutions/data-link-api"
+  },
+  occMarketData: {
+    label: "OCC volume and open interest reports",
+    url: "https://www.theocc.com/market-data"
+  },
+  cboeOptions: {
+    label: "Cboe U.S. options market data",
+    url: "https://www.cboe.com/en/data/market-data-services/us/options/"
+  },
   tsmc3dFabric: {
     label: "TSMC 3DFabric advanced packaging",
     url: "https://www.tsmc.com/chinese/dedicatedFoundry/services/advanced-packaging"

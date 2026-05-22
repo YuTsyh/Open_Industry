@@ -9,6 +9,7 @@ import {
   technologyRoleMap
 } from "../components/technologyDetails.js";
 import { officialTechnologySources } from "../components/officialEvidence.js";
+import { liveDataReadinessPanel } from "../components/liveFeeds.js";
 
 function techFor(id) {
   return technologyCatalog[id] || technologyCatalog.cowos;
@@ -43,6 +44,7 @@ export function renderTechnology(state) {
 
       ${technologyProcessFlow(tech)}
       ${officialTechnologySources(state.techId)}
+      ${liveDataReadinessPanel()}
 
       <div class="overview-grid">
         <article class="card stable-tech-card"><p class="eyebrow">Summary</p><h2>摘要與研究重點</h2><p class="muted">${escapeHtml(tech.summary)}</p></article>

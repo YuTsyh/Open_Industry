@@ -5,6 +5,7 @@ import {
 } from "../data.js";
 import { escapeHtml } from "../utils.js";
 import { confidenceBadge } from "./badges.js";
+import { SOURCE_SLOT_COUNT } from "./technologyDetails.js";
 
 export function officialEvidencePanel(industryId, options = {}) {
   const items = officialEvidenceByIndustry[industryId] || [];
@@ -30,15 +31,15 @@ export function officialEvidencePanel(industryId, options = {}) {
 
 export function officialTechnologySources(techId) {
   const sourceKeys = officialEvidenceByTechnology[techId] || [];
-  if (!sourceKeys.length) return "";
+  const sourceSlots = Array.from({ length: SOURCE_SLOT_COUNT }, (_, index) => sourceKeys[index] || "");
 
   return `
     <article class="card official-tech-sources">
       <p class="eyebrow">Official references</p>
       <h2>技術來源依據</h2>
-      <p class="small">以下為本技術頁內容使用的官方資料入口，方便後續研究員補更深的製程與公司細節。</p>
-      <div class="source-row">
-        ${sourceKeys.map(sourceLink).join("")}
+      <p class="small">固定保留四個來源槽位；沒有來源的技術也會顯示同尺寸待補欄位，不會讓技術詳情切換時高度忽大忽小。</p>
+      <div class="source-row stable-source-grid">
+        ${sourceSlots.map((key, index) => key ? sourceCard(key) : `<span class="source-card source-placeholder"><strong>Source ${index + 1}</strong><small>待補官方來源</small></span>`).join("")}
       </div>
     </article>
   `;
@@ -60,4 +61,10 @@ function evidenceCard(item) {
       </div>
     </article>
   `;
+}
+
+function sourceCard(key) {
+  const source = officialSources[key];
+  if (!source) return "";
+  return `<a class="source-card" href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer"><strong>${escapeHtml(source.label)}</strong><small>官方來源</small></a>`;
 }

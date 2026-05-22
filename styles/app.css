@@ -369,6 +369,70 @@ h3 { font-size: 18px; line-height: 1.25; }
 .official-tech-sources .source-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.stable-source-grid {
+  min-height: 128px;
+  align-content: stretch;
+}
+.source-card {
+  display: grid;
+  align-content: start;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--blue);
+  text-decoration: none;
+  overflow: hidden;
+}
+.source-card strong,
+.source-card small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+.source-card strong {
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.source-card small {
+  -webkit-line-clamp: 1;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.source-placeholder {
+  display: grid;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  background: var(--surface-soft);
+}
+.live-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.live-feed-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 170px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 14px;
+}
+.live-feed-card.is-muted {
+  opacity: 0.72;
+  background: var(--surface-soft);
+}
+.live-feed-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
 
 .supply-map { display: grid; gap: 14px; }
 .lane { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: stretch; }
@@ -500,15 +564,36 @@ tr.hidden, .hidden { display: none !important; }
   grid-template-columns: none;
   grid-auto-flow: column;
   grid-auto-columns: minmax(190px, 1fr);
-  min-height: 154px;
+  min-height: 176px;
   overflow-x: auto;
   padding-bottom: 4px;
   scroll-snap-type: x proximity;
 }
 .technology-process .process-step {
-  min-height: 132px;
+  min-height: 154px;
   align-content: start;
   scroll-snap-align: start;
+}
+.technology-process .process-step strong,
+.technology-process .process-step p,
+.maturity-item p,
+.bottleneck p,
+.technology-role-map .matrix-cell p,
+.stable-tech-card > .muted {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+.technology-process .process-step strong { -webkit-line-clamp: 2; }
+.technology-process .process-step p,
+.bottleneck p,
+.technology-role-map .matrix-cell p { -webkit-line-clamp: 3; }
+.maturity-item p,
+.stable-tech-card > .muted { -webkit-line-clamp: 2; }
+.technology-process .process-step.is-empty {
+  border-style: dashed;
+  background: var(--surface-soft);
+  color: var(--muted);
 }
 .step-index {
   width: fit-content;
@@ -531,6 +616,19 @@ tr.hidden, .hidden { display: none !important; }
   align-content: start;
 }
 .technology-bottleneck-map .bottleneck { min-height: 116px; align-content: start; }
+.technology-bottleneck-map .bottleneck.is-empty,
+.technology-role-map .matrix-cell.is-empty {
+  border-style: dashed;
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+.technology-role-map {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.technology-role-map .matrix-cell {
+  min-height: 96px;
+  align-content: start;
+}
 
 .two-column { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
 .summary-title { display: flex; justify-content: space-between; gap: 16px; }
@@ -783,7 +881,7 @@ tr.hidden, .hidden { display: none !important; }
     grid-template-columns: 1fr;
   }
   .hero-meta { justify-items: start; }
-  .hero-stat-grid, .heatmap-grid, .lane-cards, .lower-grid, .component-grid, .landscape-card-view, .flow, .role-map, .matrix, .risk-grid, .bottleneck-map, .maturity-list, .swot-grid, .industry-tech-grid, .relationship-board, .tech-detail-selector, .cross-link-grid, .official-evidence-grid, .workbench-actions, .technology-maturity-list, .technology-bottleneck-map, .official-tech-sources .source-row {
+  .hero-stat-grid, .heatmap-grid, .lane-cards, .lower-grid, .component-grid, .landscape-card-view, .flow, .role-map, .matrix, .risk-grid, .bottleneck-map, .maturity-list, .swot-grid, .industry-tech-grid, .relationship-board, .tech-detail-selector, .cross-link-grid, .official-evidence-grid, .workbench-actions, .technology-maturity-list, .technology-bottleneck-map, .official-tech-sources .source-row, .live-feed-grid {
     grid-template-columns: 1fr;
   }
   .technology-process { grid-auto-columns: minmax(178px, 84%); }
