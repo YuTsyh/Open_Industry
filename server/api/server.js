@@ -127,6 +127,32 @@ function sourceTimestamp(snapshot = {}) {
   return snapshot.sourceTimestamp || snapshot.asOf || null;
 }
 
+function trendFromSnapshot(snapshot = {}, status = "provider-ready") {
+  const changePercent = Number(snapshot.changePercent);
+  const hasChange = Number.isFinite(changePercent);
+  const sign = hasChange && changePercent > 0 ? "+" : "";
+  return {
+    direction: !hasChange ? "flat" : changePercent > 0 ? "up" : changePercent < 0 ? "down" : "flat",
+    changePercent: hasChange ? changePercent : null,
+    label: hasChange ? `${sign}${changePercent}%` : "history provider-ready",
+    status
+  };
+}
+
+function priceHistoryFromSnapshot(snapshot = {}) {
+  if (!snapshot || snapshot.status !== "available" || snapshot.last == null) return [];
+  return [
+    {
+      date: snapshot.sourceTimestamp || snapshot.asOf || "latest",
+      close: snapshot.last,
+      provider: snapshot.provider || "price provider slot",
+      sourceTimestamp: sourceTimestamp(snapshot),
+      status: snapshot.status,
+      sourceIds: snapshot.sourceKeys || []
+    }
+  ];
+}
+
 function providerStatus({ feedType, provider, status, market, entityType, entityId, latestSourceTimestamp }) {
   return {
     feedType,
@@ -416,15 +442,17 @@ async function handleRequest(request, response, options) {
     const company = companies[companyId];
     if (!company) return routeError(response, 404, "company not found");
     const snapshot = company.liveFeeds?.priceSnapshot || {};
+    const status = statusFromFeed(company.liveFeeds?.price, snapshot);
     return sendJson(response, 200, {
       companyId,
       provider: snapshot.provider || "price provider slot",
-      status: statusFromFeed(company.liveFeeds?.price, snapshot),
+      status,
       currency: snapshot.currency || "",
       sourceTimestamp: sourceTimestamp(snapshot),
       asOf: snapshot.asOf || null,
       snapshot,
-      history: [],
+      history: priceHistoryFromSnapshot(snapshot),
+      trend: trendFromSnapshot(snapshot, status),
       providerStatuses: [companyFeedStatuses(companyId)[0]]
     });
   }

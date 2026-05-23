@@ -2,6 +2,7 @@ import { companies } from "../data.js";
 import { industryExposure } from "../domain/companyMetrics.js";
 import { displayCompany, escapeHtml } from "../utils.js";
 import { confidenceBadge, marketBadge, techBadge } from "./badges.js";
+import { priceSparkline } from "./sparklines.js";
 
 export function companyCard(node) {
   const company = companies[node.company];
@@ -27,7 +28,7 @@ export function companyCard(node) {
   `;
 }
 
-export function companyRows(companyIds, filters, industryId) {
+export function companyRows(companyIds, filters, industryId, companyPrices = {}) {
   const visible = companyIds
     .map(id => ({ id, company: companies[id] }))
     .filter(({ company }) => company)
@@ -47,7 +48,12 @@ export function companyRows(companyIds, filters, industryId) {
       const score = exposure.score ?? company.exposure ?? 0;
       return `
       <tr data-company-id="${escapeHtml(id)}">
-        <td><strong>${escapeHtml(displayCompany(id))}</strong></td>
+        <td>
+          <span class="company-row-name">
+            <strong>${escapeHtml(displayCompany(id))}</strong>
+            ${priceSparkline(companyPrices[id] || {}, { className: "company-row-sparkline" })}
+          </span>
+        </td>
         <td>${marketBadge(company.market)}</td>
         <td>${escapeHtml(company.roles.join(" / "))}</td>
         <td><strong>${score}%</strong><br><span class="small">${escapeHtml(exposure.thesis)}</span></td>

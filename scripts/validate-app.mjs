@@ -13,8 +13,10 @@ import { renderRoute } from "../src/views/index.js";
 import {
   buildApiConfig,
   createNote,
+  fetchCompanyPrice,
   fetchFilings,
   fetchCompanyLive,
+  fetchHeatmap,
   fetchNews,
   fetchNotes,
   fetchTechnologyAnnouncements
@@ -123,6 +125,46 @@ const fetchImpl = async (url, options = {}) => {
       })
     };
   }
+  if (url.endsWith("/api/live/company/tsmc/price")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        companyId: "tsmc",
+        provider: "TWSE delayed",
+        status: "delayed",
+        snapshot: { last: 2310, change: 60, changePercent: 2.67, currency: "TWD", provider: "TWSE delayed", status: "available" },
+        history: [
+          { date: "2026-05-22", close: 2250, provider: "TWSE delayed", sourceTimestamp: "2026-05-22T06:00:00Z" },
+          { date: "2026-05-23", close: 2310, provider: "TWSE delayed", sourceTimestamp: "2026-05-23T06:00:00Z" }
+        ],
+        trend: { direction: "up", changePercent: 2.67, label: "+2.67%", status: "delayed" },
+        providerStatuses: [{ feedType: "price", provider: "TWSE delayed", status: "delayed" }]
+      })
+    };
+  }
+  if (url.includes("/api/live/heatmap")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        period: "latest",
+        universe: "cap",
+        rows: [
+          {
+            id: "advanced-packaging",
+            label: "API Advanced Packaging",
+            score: 1.4,
+            leaderText: "TSMC / ASE",
+            coverage: { priced: 2, total: 4, label: "2/4 licensed snapshots" },
+            sourceLabel: "TWSE delayed",
+            asOfLabel: "2026-05-23T06:00:00Z"
+          }
+        ],
+        providerStatuses: [{ feedType: "price", provider: "TWSE delayed", status: "delayed" }]
+      })
+    };
+  }
   if (url.includes("/api/notes") && options.method === "POST") {
     return {
       ok: true,
@@ -160,6 +202,13 @@ const fetchImpl = async (url, options = {}) => {
 
 const livePayload = await fetchCompanyLive({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
 assert.equal(livePayload.company.id, "tsmc", "frontend API client should fetch company live payload");
+
+const pricePayload = await fetchCompanyPrice({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
+assert.equal(pricePayload.history.length, 2, "frontend API client should fetch source-backed price history points");
+assert.equal(pricePayload.trend.label, "+2.67%", "frontend API client should keep trend metadata");
+
+const heatmapPayload = await fetchHeatmap({ baseUrl: apiConfig.baseUrl, period: "latest", universe: "cap", fetchImpl });
+assert.equal(heatmapPayload.rows[0].label, "API Advanced Packaging", "frontend API client should fetch live heatmap rows");
 
 const notesPayload = await fetchNotes({
   baseUrl: apiConfig.baseUrl,
@@ -367,6 +416,31 @@ assert.ok(
   "overview should explain live price snapshot coverage"
 );
 
+const apiOverviewHtml = renderRoute({
+  ...requiredState,
+  route: "overview",
+  api: {
+    enabled: true,
+    heatmap: {
+      "latest:cap": {
+        rows: [
+          {
+            id: "advanced-packaging",
+            label: "API Advanced Packaging",
+            score: 1.4,
+            leaderText: "TSMC / ASE",
+            coverage: { priced: 2, total: 4, label: "2/4 licensed snapshots" },
+            sourceLabel: "TWSE delayed",
+            asOfLabel: "2026-05-23T06:00:00Z"
+          }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiOverviewHtml.includes("API Advanced Packaging"), "overview should render API heatmap rows when loaded");
+assert.ok(apiOverviewHtml.includes("TWSE delayed"), "overview API heatmap should keep provider labels");
+
 const technologyHtml = renderRoute({ ...requiredState, route: "technology" });
 assert.ok(
   technologyHtml.includes("live-data-readiness"),
@@ -433,6 +507,49 @@ assert.ok(
   companyHtml.includes("不是加總比例") && companyHtml.includes("不需要加總小於 100"),
   "company detail should clarify exposure scores are independent, non-additive scores"
 );
+
+const apiCompanyPriceHtml = renderRoute({
+  ...requiredState,
+  route: "company",
+  api: {
+    enabled: true,
+    companyLive: { tsmc: { feedStatuses: [] } },
+    companyPrices: {
+      tsmc: {
+        snapshot: { last: 2310, change: 60, changePercent: 2.67, currency: "TWD", provider: "TWSE delayed", status: "available" },
+        history: [
+          { date: "2026-05-22", close: 2250, provider: "TWSE delayed", sourceTimestamp: "2026-05-22T06:00:00Z" },
+          { date: "2026-05-23", close: 2310, provider: "TWSE delayed", sourceTimestamp: "2026-05-23T06:00:00Z" }
+        ],
+        trend: { direction: "up", changePercent: 2.67, label: "+2.67%", status: "delayed" },
+        providerStatuses: [{ feedType: "price", provider: "TWSE delayed", status: "delayed" }]
+      }
+    }
+  }
+});
+assert.ok(apiCompanyPriceHtml.includes("price-trend-mini"), "company header should render API price trend mini-chart");
+assert.ok(apiCompanyPriceHtml.includes("+2.67%") && apiCompanyPriceHtml.includes("TWSE delayed"), "company price trend should show performance and source");
+
+const apiLandscapeHtml = renderRoute({
+  ...requiredState,
+  route: "industry",
+  industryTab: "landscape",
+  api: {
+    enabled: true,
+    companyPrices: {
+      tsmc: {
+        history: [
+          { date: "2026-05-22", close: 2250, provider: "TWSE delayed", sourceTimestamp: "2026-05-22T06:00:00Z" },
+          { date: "2026-05-23", close: 2310, provider: "TWSE delayed", sourceTimestamp: "2026-05-23T06:00:00Z" }
+        ],
+        trend: { label: "+2.67%", status: "delayed" },
+        provider: "TWSE delayed"
+      }
+    }
+  }
+});
+assert.ok(apiLandscapeHtml.includes("company-row-sparkline"), "company landscape table should render company mini-charts");
+assert.ok(apiLandscapeHtml.includes("data-price-sparkline"), "company mini-charts should expose stable chart markup");
 
 const apiCompanyHtml = renderRoute({
   ...requiredState,

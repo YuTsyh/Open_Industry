@@ -256,6 +256,46 @@ h3 { font-size: 18px; line-height: 1.25; }
 .heat-cell:not(.active) .heat-score.positive { color: var(--green); }
 .heat-cell:not(.active) .heat-score.negative { color: var(--danger); }
 .heat-meta { color: inherit; opacity: 0.76; font-size: 12px; line-height: 1.45; }
+.price-trend-mini { display: grid; gap: 4px; }
+.price-sparkline,
+.company-row-sparkline {
+  display: inline-grid;
+  grid-template-columns: minmax(54px, 76px) auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  max-width: 150px;
+  color: var(--muted);
+}
+.price-sparkline svg,
+.company-row-sparkline svg {
+  width: 76px;
+  height: 28px;
+  overflow: visible;
+}
+.price-sparkline polyline,
+.company-row-sparkline polyline {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.price-sparkline.is-empty,
+.company-row-sparkline.is-empty { grid-template-columns: 34px auto; }
+.sparkline-empty {
+  width: 34px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.sparkline-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
 
 .overview-workbench {
   display: grid;
@@ -519,7 +559,8 @@ h3 { font-size: 18px; line-height: 1.25; }
 }
 .company-card { display: grid; gap: 10px; min-height: 150px; }
 .card-action { color: var(--blue); font-size: 12px; font-weight: 700; }
-.company-title { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.company-title, .company-row-name { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.company-row-name { flex-wrap: wrap; min-width: 0; }
 .company-card:hover, .node-card:hover, .industry-card:hover, .signal-row:hover, .graph-node:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--blue), var(--line) 30%); background: color-mix(in srgb, var(--surface-soft) 68%, var(--surface)); }
 .is-highlighting .company-card, .is-highlighting .node-card { opacity: 0.28; }
 .is-highlighting .company-card.related, .is-highlighting .node-card.related, .company-card.pinned, .node-card.pinned {

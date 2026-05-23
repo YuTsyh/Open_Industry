@@ -9,7 +9,11 @@ import { buildLiveHeatmapRows } from "../domain/heatmapMetrics.js";
 export function renderOverview(state, industry) {
   const range = heatmapOptions.ranges.find(item => item.id === state.heatRange) || heatmapOptions.ranges[1];
   const universe = heatmapOptions.universes.find(item => item.id === state.heatUniverse) || heatmapOptions.universes[0];
-  const heatRows = buildLiveHeatmapRows({ universeId: state.heatUniverse, rangeId: state.heatRange });
+  const heatmapKey = `${state.heatRange}:${state.heatUniverse}`;
+  const apiHeatmap = state.api?.heatmap?.[heatmapKey];
+  const heatRows = apiHeatmap?.rows?.length
+    ? apiHeatmap.rows
+    : buildLiveHeatmapRows({ universeId: state.heatUniverse, rangeId: state.heatRange });
   const companyCount = industryCompanyIds(industry).length;
   const techCount = (technologyMenus[state.industryId] || []).length;
 

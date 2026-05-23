@@ -4,6 +4,7 @@ import { escapeHtml } from "../utils.js";
 import { confidenceBadge, marketBadge, techBadge } from "../components/badges.js";
 import { relationshipGraph } from "../components/maps.js";
 import { companyLiveFeedPanel } from "../components/liveFeeds.js";
+import { priceSparkline } from "../components/sparklines.js";
 
 function sourceTags(keys = []) {
   return keys
@@ -43,15 +44,21 @@ function exposureGrid(company) {
   `;
 }
 
-function priceSummary(company) {
-  const snapshot = company.liveFeeds?.priceSnapshot || {};
+function priceSummary(company, apiPrice = {}) {
+  apiPrice = apiPrice || {};
+  const snapshot = apiPrice.snapshot || company.liveFeeds?.priceSnapshot || {};
   const formatted = formatPriceSnapshot(snapshot);
+  const provider = apiPrice.provider || snapshot.provider || "provider-ready";
   return `
     <div class="score-card price-snapshot-card">
       <span class="small">Price snapshot</span>
       <strong class="metric-value">${escapeHtml(formatted.value)}</strong>
       <span class="small">${escapeHtml(formatted.change)}</span>
-      <span class="small">${escapeHtml(snapshot.asOf || "source-ready")}</span>
+      <div class="price-trend-mini">
+        ${priceSparkline(apiPrice)}
+      </div>
+      <span class="small">${escapeHtml(snapshot.asOf || apiPrice.sourceTimestamp || "source-ready")}</span>
+      <span class="tag">${escapeHtml(provider)}</span>
     </div>
   `;
 }
@@ -60,6 +67,7 @@ export function renderCompany(state) {
   const companyId = state.companyId || "tsmc";
   const company = companies[companyId] || companies.tsmc;
   const apiLive = state.api?.companyLive?.[companyId] || null;
+  const apiPrice = state.api?.companyPrices?.[companyId] || null;
   return `
     <section class="page-shell">
       <section class="company-header">
@@ -77,7 +85,7 @@ export function renderCompany(state) {
         </article>
         <div class="score-card"><span class="small">Core exposure score</span><strong class="metric-value">${company.exposure}%</strong><span class="small">非加總式主題分數</span>${confidenceBadge(company.confidence)}</div>
         <div class="score-card"><span class="small">Technical level</span><strong class="metric-value">${escapeHtml(company.technicalLevel)}</strong>${techBadge(company.technicalLevel)}</div>
-        ${priceSummary(company)}
+        ${priceSummary(company, apiPrice)}
       </section>
 
       <div class="two-column">

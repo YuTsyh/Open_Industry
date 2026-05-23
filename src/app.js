@@ -3,12 +3,14 @@ import {
   buildApiConfig,
   createNote,
   fetchCompanyLive,
+  fetchCompanyPrice,
   fetchFilings,
+  fetchHeatmap,
   fetchNews,
   fetchNotes,
   fetchTechnologyAnnouncements
 } from "./api/client.js";
-import { displayCompany, escapeHtml } from "./utils.js";
+import { displayCompany, escapeHtml, industryCompanyIds } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
 
 const root = document.querySelector("#appRoot");
@@ -38,6 +40,8 @@ const state = {
   api: {
     ...buildApiConfig(),
     companyLive: {},
+    companyPrices: {},
+    heatmap: {},
     industryEvents: {},
     technologyAnnouncements: {},
     notes: {},
@@ -148,6 +152,50 @@ async function refreshCompanyApi(companyId) {
   if (shouldRenderApiRefresh(companyId)) render();
 }
 
+async function refreshCompanyPrice(companyId) {
+  const key = `price:${companyId}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.companyPrices[companyId]) return;
+
+  state.api.pending[key] = true;
+  try {
+    state.api.companyPrices[companyId] = await fetchCompanyPrice({
+      baseUrl: state.api.baseUrl,
+      companyId
+    });
+  } catch (error) {
+    state.api.companyPrices[companyId] = {
+      history: [],
+      trend: { label: "history provider-ready", status: "error" },
+      providerStatuses: [{ feedType: "price", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[key];
+  if (state.route === "company" && state.companyId === companyId) render();
+  if (state.route === "industry" && state.industryTab === "landscape") render();
+}
+
+async function refreshHeatmap() {
+  const key = `${state.heatRange}:${state.heatUniverse}`;
+  const pendingKey = `heatmap:${key}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[pendingKey] || state.api.heatmap[key]) return;
+
+  state.api.pending[pendingKey] = true;
+  try {
+    state.api.heatmap[key] = await fetchHeatmap({
+      baseUrl: state.api.baseUrl,
+      period: state.heatRange,
+      universe: state.heatUniverse
+    });
+  } catch (error) {
+    state.api.heatmap[key] = {
+      rows: [],
+      providerStatuses: [{ feedType: "price", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[pendingKey];
+  if (state.route === "overview") render();
+}
+
 async function refreshIndustryEvents(industryId) {
   const key = `industry:${industryId}`;
   if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.industryEvents[industryId]) return;
@@ -195,7 +243,14 @@ async function refreshTechnologyAnnouncements(technologyId) {
 }
 
 function refreshApiForRoute() {
-  if (state.route === "company") refreshCompanyApi(state.companyId || "tsmc");
+  if (state.route === "overview") refreshHeatmap();
+  if (state.route === "company") {
+    refreshCompanyApi(state.companyId || "tsmc");
+    refreshCompanyPrice(state.companyId || "tsmc");
+  }
+  if (state.route === "industry" && state.industryTab === "landscape") {
+    industryCompanyIds(industries[state.industryId] || industries[defaultIndustry]).slice(0, 12).forEach(refreshCompanyPrice);
+  }
   if (state.route === "industry" && state.industryTab === "news") refreshIndustryEvents(state.industryId);
   if (state.route === "technology") refreshTechnologyAnnouncements(state.techId);
 }

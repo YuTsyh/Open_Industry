@@ -52,6 +52,22 @@ export async function fetchCompanyLive({ baseUrl, companyId, fetchImpl = globalT
   return readJson(response);
 }
 
+export async function fetchCompanyPrice({ baseUrl, companyId, fetchImpl = globalThis.fetch }) {
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/live/company/${encodeURIComponent(companyId)}/price`);
+  return readJson(response);
+}
+
+export async function fetchHeatmap({
+  baseUrl,
+  period = "latest",
+  universe = "cap",
+  fetchImpl = globalThis.fetch
+}) {
+  const params = new URLSearchParams({ period, universe });
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/live/heatmap?${params}`);
+  return readJson(response);
+}
+
 export async function fetchFilings({
   baseUrl,
   companyId,

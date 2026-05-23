@@ -64,6 +64,9 @@ try {
     assert.equal(body.providerStatuses[0].status, "delayed");
     assert.ok(body.snapshot.sourceTimestamp || body.snapshot.asOf, "price response should expose source timing");
     assert.ok(body.snapshot.provider, "price response should expose provider");
+    assert.ok(body.history.length >= 1, "price response should include at least one source-backed point for mini charts");
+    assert.ok(body.history.every(point => point.provider && point.sourceTimestamp), "price history points should keep provider and source timing");
+    assert.ok(body.trend.label && body.trend.status, "price response should expose trend metadata");
   }
 
   {
