@@ -2,13 +2,14 @@ import { companies, heatmapOptions, industries, industryOrder, technologyMenus }
 import { displayCompany, escapeHtml, industryCompanyIds } from "../utils.js";
 import { confidenceBadge, metricTile } from "../components/badges.js";
 import { heatCell } from "../components/panels.js";
-import { overviewResearchWorkbench } from "../components/overviewModules.js";
+import { overviewResearchWorkbench, researchHealthPanel } from "../components/overviewModules.js";
 import { officialEvidencePanel } from "../components/officialEvidence.js";
+import { buildLiveHeatmapRows } from "../domain/heatmapMetrics.js";
 
 export function renderOverview(state, industry) {
   const range = heatmapOptions.ranges.find(item => item.id === state.heatRange) || heatmapOptions.ranges[1];
   const universe = heatmapOptions.universes.find(item => item.id === state.heatUniverse) || heatmapOptions.universes[0];
-  const heatRows = heatmapOptions.data[state.heatUniverse] || heatmapOptions.data.cap;
+  const heatRows = buildLiveHeatmapRows({ universeId: state.heatUniverse, rangeId: state.heatRange });
   const companyCount = industryCompanyIds(industry).length;
   const techCount = (technologyMenus[state.industryId] || []).length;
 
@@ -18,7 +19,7 @@ export function renderOverview(state, industry) {
         <section class="overview-lead">
           <p class="eyebrow">Research overview</p>
           <h1>從產業熱點進入供應鏈拓撲</h1>
-          <p class="muted">先用族群熱力圖辨識研究方向，再進入供應鏈、公司定位、技術瓶頸與外溢路徑。熱力圖數值為研究排序佔位值，不代表即時股價或投資建議。</p>
+          <p class="muted">先用族群熱力圖辨識研究方向，再進入供應鏈、公司定位、技術瓶頸與外溢路徑。熱力圖聚合公司價格快照與產業曝險權重；不是交易訊號。</p>
           <div class="hero-actions">
             <button class="pill-button primary" data-route="explorer" type="button">進入產業探索</button>
             <button class="pill-button secondary" data-route="industry" type="button">查看產業詳情</button>
@@ -35,7 +36,7 @@ export function renderOverview(state, industry) {
             <div>
               <p class="eyebrow">Industry price heatmap</p>
               <h2>產業股價熱力圖</h2>
-              <p class="small">以 ${escapeHtml(universe.label)} 與 ${escapeHtml(range.label)} 檢視族群強弱，作為研究入口而非交易訊號。</p>
+              <p class="small">以 ${escapeHtml(universe.label)} 與 ${escapeHtml(range.label)} 檢視族群價格快照。缺少授權行情的公司會顯示 provider-ready，不捏造價格。</p>
             </div>
             <div class="toolbar-controls">
               <label class="field">期間
@@ -51,13 +52,17 @@ export function renderOverview(state, industry) {
             </div>
           </div>
           <div class="heatmap-grid">
-            ${heatRows.map(item => heatCell(item, item[3] + range.adjustment, item[0] === state.industryId)).join("")}
+            ${heatRows.map(row => heatCell(row, row.id === state.industryId)).join("")}
           </div>
-          ${confidenceBadge("source", "非即時行情")}
+          <div class="heatmap-source-note">
+            ${confidenceBadge("source", "price snapshot")}
+            <span class="small">熱力圖分數 = 可用公司價格變動依產業曝險分數加權平均；覆蓋率不足時只作為資料接入狀態。</span>
+          </div>
         </section>
       </div>
 
       ${overviewResearchWorkbench(state, industry)}
+      ${researchHealthPanel()}
       ${officialEvidencePanel(state.industryId, { compact: true })}
 
       <div class="research-grid overview-context-grid">

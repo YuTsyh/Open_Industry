@@ -1,4 +1,4 @@
-import { companies, industries, technologyMenus } from "../data.js";
+import { companies, industries, technologyCatalog, technologyMenus } from "../data.js";
 import { compactCrossIndustryList } from "./crossIndustry.js";
 import { confidenceBadge } from "./badges.js";
 import { displayCompany, escapeHtml, industryCompanyIds } from "../utils.js";
@@ -20,7 +20,7 @@ export function overviewResearchWorkbench(state, industry) {
           ${confidenceBadge(industry.snapshot.confidence)}
         </div>
         <div class="workbench-actions">
-          <button class="action-card primary-action" data-route="explorer" type="button">
+          <button class="action-card primary-action" data-route="industry" data-industry-tab-jump="map" type="button">
             <span>01</span>
             <strong>打開供應鏈拓撲</strong>
             <small>查看上游、中游、下游節點與 hover/click 關係。</small>
@@ -63,6 +63,62 @@ export function overviewResearchWorkbench(state, industry) {
           ${industry.snapshot.bottlenecks.slice(0, 2).map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "監控")}</div>`).join("")}
         </div>
       </article>
+    </section>
+  `;
+}
+
+export function researchHealthPanel() {
+  const companyRecords = Object.values(companies);
+  const techIds = [...new Set(Object.values(technologyMenus).flat())];
+  const pricedCompanies = companyRecords.filter(company => company.liveFeeds?.priceSnapshot?.status === "available").length;
+  const exposureCoverage = companyRecords.filter(company => Object.keys(company.industryExposures || {}).length >= 2).length;
+  const authoredStepDetails = techIds.filter(id => {
+    const tech = technologyCatalog[id];
+    return (tech.processDetails || []).length >= (tech.process || []).length;
+  }).length;
+  const laneCoverage = Object.values(industries).filter(industry => industry.lanes?.length === 3).length;
+
+  const healthItems = [
+    ["Company profiles", `${companyRecords.length}`, "roles, exposure, SWOT, live-feed slots"],
+    ["Price snapshots", `${pricedCompanies}/${companyRecords.length}`, "delayed/public snapshot coverage"],
+    ["Industry exposure", `${exposureCoverage}/${companyRecords.length}`, "multi-industry score coverage"],
+    ["Supply-chain lanes", `${laneCoverage}/${Object.keys(industries).length}`, "upstream / midstream / downstream maps"],
+    ["Technology maps", `${techIds.length}`, "process, bottleneck and company-role coverage"],
+    ["Authored step detail", `${authoredStepDetails}/${techIds.length}`, "current step map is generated when source-specific detail is missing"]
+  ];
+
+  const gaps = [
+    "Separate source-linked step notes from generated step explanations for each technology.",
+    "Replace planned live feeds with licensed price, filing, news and options providers before treating changes as current market signals.",
+    "Add relationship evidence types for supplier, customer, qualification, capacity and substitution links.",
+    "Track freshness per company field so stale exposure, SWOT or supplier notes are visible before analysis."
+  ];
+
+  return `
+    <section class="panel research-health-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Data health</p>
+          <h2>資料健康度與研究限制</h2>
+          <p class="small">這個面板把目前可用資料和不能過度解讀的地方放在同一處，避免把原型資料誤讀成完整基本面結論。</p>
+        </div>
+        ${confidenceBadge("source", "health check")}
+      </div>
+      <div class="health-grid">
+        ${healthItems.map(([label, value, note]) => `
+          <div class="health-item">
+            <strong>${escapeHtml(value)}</strong>
+            <span>${escapeHtml(label)}</span>
+            <small>${escapeHtml(note)}</small>
+          </div>
+        `).join("")}
+      </div>
+      <div class="gap-list">
+        <h3>Remaining gaps</h3>
+        <div class="mini-list">
+          ${gaps.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "todo")}</div>`).join("")}
+        </div>
+      </div>
     </section>
   `;
 }

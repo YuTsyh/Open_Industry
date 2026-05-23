@@ -14,7 +14,7 @@ The product should help a beginner understand what an industry does within 30 se
 - source confidence
 - upstream and downstream relationships
 
-This prototype uses real public company names and tickers, but it does not use real financial data or live market data.
+This prototype uses real public company names and tickers. It may show clearly labeled delayed/public price snapshots for UI design, but it does not present licensed real-time market data or investment advice.
 
 ## 2. Information Architecture
 
@@ -103,6 +103,10 @@ Required fields:
 - `market`
 - `roles`
 - `exposure`
+- `industryExposures`
+- `roleDetails`
+- `capabilityLadder`
+- `swot`
 - `technicalLevel`
 - `confidence`
 - `summary`
@@ -111,6 +115,18 @@ Required fields:
 - `competitors`
 - `alternatives`
 - `moat`
+- `sources`
+- `liveFeeds.priceSnapshot`
+- `liveFeeds.price`
+- `liveFeeds.filings`
+- `liveFeeds.news`
+- `liveFeeds.options`
+
+`exposure` is the company-level summary score. Industry comparisons must use `industryExposures[industryId].score` so a company can be highly exposed to AI server while having lower exposure to optical, memory, equipment, or power/cooling.
+
+Exposure scores are independent 0-100 topic relevance / purity scores. They are not revenue mix, ownership, portfolio weight, or probability values, so scores across industries do not need to add up to 100. If the product later adds revenue split, create a separate `revenueMix` model that validates near-100% totals and has its own source trail.
+
+`liveFeeds.priceSnapshot` is allowed for delayed/public quote snapshots. It must include status, currency, provider, timestamp, and source keys. Do not label it as real-time unless a licensed backend provider supplies it. The overview heatmap reads these price snapshots through `src/domain/heatmapMetrics.js` and displays coverage, provider, and fallback states instead of static invented heatmap values.
 
 Ticker rendering rule:
 
@@ -140,6 +156,8 @@ Each lane contains company nodes:
 - `detail`
 
 The `related` list drives hover highlighting and relationship explanation.
+
+Highlighted supply-chain nodes mean direct topology linkage inside the selected industry: supply, demand, specification, capacity, or qualification dependencies. They do not mean equity ownership, stock-price correlation, or a verified contractual relationship unless a future source field explicitly says so.
 
 ### `technologyCatalog`
 
@@ -240,6 +258,7 @@ Clicking a node:
 2. shows company name, ticker, market, roles, exposure, confidence
 3. shows suppliers, customers, and alternatives
 4. offers a link to the Company Detail page
+5. pins the node highlight so the user can see which card opened the drawer
 
 ### Company Relationship Graph
 
@@ -411,7 +430,8 @@ SPEC.md
 4. Run `node scripts/generate-company-registry.mjs`.
 5. Attach the company id to an industry lane node and any relevant topology `related` arrays.
 6. Add official or market-source keys in `sources`; do not add unsourced claims.
-7. Configure `liveFeeds.price`, `liveFeeds.filings`, `liveFeeds.news`, and `liveFeeds.options` so future backend data can populate the same UI slots.
+7. Configure `industryExposures`, `roleDetails`, `capabilityLadder`, and `swot` so Company Detail is useful without changing view code.
+8. Configure `liveFeeds.priceSnapshot`, `liveFeeds.price`, `liveFeeds.filings`, `liveFeeds.news`, and `liveFeeds.options` so future backend data can populate the same UI slots.
 
 ### Add an Industry
 
@@ -464,10 +484,13 @@ Recommended production architecture:
   - `industries`
   - `technologies`
   - `company_industry_roles`
+  - `company_industry_exposures`
+  - `company_capability_ladder`
+  - `company_swot_items`
   - `relationships`
   - `official_sources`
   - `daily_prices`
-  - `intraday_snapshots`
+  - `price_snapshots`
   - `filings`
   - `news_events`
   - `option_chains`
@@ -476,13 +499,14 @@ Recommended production architecture:
   - Taiwan: TWSE OpenAPI for market datasets, MOPS for filings/events.
   - Japan: JPX J-Quants and JPX delayed API where licensed.
   - U.S.: SEC EDGAR APIs for filings, Nasdaq/NYSE/Cboe/OCC or licensed vendors for market/options data.
-- Cache derived research fields such as exposure score, purity score, topology role, confidence, and source quality separately from raw market data.
+- Cache derived research fields such as company-level exposure, industry-specific exposure, purity score, topology role, confidence, and source quality separately from raw market data.
 - Do not fetch exchange or options data directly from browser code. It creates licensing, rate-limit, API-key, CORS, and audit problems.
 
 ## 9. Content Policy
 
 - Use real company names and ticker symbols when requested.
-- Do not use real financial data unless a future version explicitly adds data licensing and source attribution.
+- Delayed/public price snapshots are allowed only when labeled with provider, timestamp, status, and source keys.
+- Do not present delayed/public snapshots as licensed real-time quotes.
 - Do not present prototype heatmap values as live market data.
 - Use qualitative technical facts and mark source quality.
 - Keep the investment disclaimer visible in the company page footer.
@@ -521,6 +545,18 @@ Recommended production architecture:
 - OCC market data reports: https://www.theocc.com/market-data
 - Cboe U.S. options market data: https://www.cboe.com/en/data/market-data-services/us/options/
 - Nasdaq Data Link APIs: https://www.nasdaq.com/solutions/data-link-api
+- CNBC public quote pages: https://www.cnbc.com/quotes/
+- StockAnalysis public quote pages: https://stockanalysis.com/stocks/
+- Yahoo Taiwan quote pages: https://tw.stock.yahoo.com/
+- Applied Materials semiconductor products: https://www.appliedmaterials.com/us/en/semiconductor/products.html
+- Applied Materials next-gen chipmaking products: https://investor.appliedmaterials.com/news-releases/news-release-details/applied-materials-unveils-next-gen-chipmaking-products
+- Vertiv AI data center solutions: https://www.vertiv.com/en-us/solutions/ai-hub/ai-solutions/
+- Vertiv CoolChip CDU: https://go.vertiv.com/CoolChip-CDU-100
+- Wiwynn AI data center and cooling solutions: https://www.wiwynn.com/news/wiwynn-launches-state-of-the-art-ai-data-center-and-cooling-solutions-at-ocp-global-summit-2024
+- QCT NVIDIA MGX/HGX AI systems: https://qct.io/Press-Releases/index/PR/Server/QCT-Expands-Its-NVIDIA-MGX-and-NVIDIA-HGX-System-Offerings-at-COMPUTEX-2024/3/0
+- Accton 800G AI/ML fabrics: https://www.accton.com/800g-ai-ml-fabrics/
+- Ibiden flip-chip package substrates: https://www.ibiden.co.jp/product/electronics/merchandise/fliptippkg/
+- Unimicron Japan product portfolio: https://www.unimicron-j.co.jp/product.html
 
 ## 11. Verification Checklist
 
@@ -541,6 +577,8 @@ Before handoff:
 - Technology Detail reserves fixed process, source, bottleneck, and company-role slots to avoid layout jumps while switching technologies.
 - Technology Detail shows live-data readiness instead of uneven source-only rows.
 - Company Detail shows future price/news/options feed slots without fake live data.
+- Company Detail shows delayed/public price snapshot cards with provider and timestamp.
+- Company Detail renders industry-specific exposure rows.
 - Company data is split one file per company under `src/datasets/companies/`.
 - Company registry can be regenerated with `scripts/generate-company-registry.mjs`.
 - Future live data schema exists in `server/schema.sql`; browser code still uses static readiness slots only.

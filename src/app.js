@@ -16,7 +16,7 @@ const state = {
   companyId: "tsmc",
   industryTab: "overview",
   companyTab: "role",
-  heatRange: "1m",
+  heatRange: "latest",
   heatUniverse: "cap",
   companyView: "table",
   filters: {
@@ -83,7 +83,7 @@ function relationTextForNode(node) {
     const relatedCompany = companies[relatedNode?.dataset.companyId];
     return relatedCompany ? `${relatedCompany.name} (${relatedCompany.ticker})` : id;
   });
-  return `${company.name} 的相鄰節點：${relatedNames.join(" / ") || "尚未建立相鄰關係"}。關係用於判斷上游限制、下游需求與可能外溢路徑。`;
+  return `${company.name} 的高亮節點代表此產業拓撲內的直接連動關係：供給、需求、規格、產能或資格認證互相牽動。相鄰節點：${relatedNames.join(" / ") || "尚未建立相鄰關係"}。這不是股價相關性，也不是股權關係。`;
 }
 
 function highlightNode(node) {
@@ -205,6 +205,9 @@ document.addEventListener("click", event => {
   const node = event.target.closest("[data-node-id]");
   if (node) {
     state.companyId = node.dataset.companyId || state.companyId;
+    document.querySelectorAll("[data-node-id].pinned").forEach(item => item.classList.remove("pinned"));
+    node.classList.add("pinned");
+    highlightNode(node);
     openDrawer(state.companyId, relationTextForNode(node));
     return;
   }
@@ -229,6 +232,14 @@ document.addEventListener("click", event => {
     setIndustry(industryButton.dataset.industry);
     if (industryButton.dataset.route) setRoute(industryButton.dataset.route);
     else render();
+    return;
+  }
+
+  const explicitCompanyPage = event.target.closest("[data-open-company-page]");
+  if (explicitCompanyPage) {
+    state.companyId = explicitCompanyPage.dataset.companyId || state.companyId;
+    closeDrawer();
+    setRoute("company");
     return;
   }
 

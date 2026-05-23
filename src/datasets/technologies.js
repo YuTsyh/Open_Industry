@@ -8,6 +8,44 @@ export const technologyCatalog = {
     summary: "TSMC CoWoS 是 2.5D wafer-level system integration 平台，將邏輯晶片、HBM 與 interposer / substrate 整合，常用於 AI 與 HPC。",
     technicalNotes: "公開資訊顯示 CoWoS 支援多種 interposer、HBM cube 與 package 尺寸；實務瓶頸集中在高階封裝產能、interposer / substrate、bonding throughput、熱管理與良率爬坡。",
     process: ["Logic die / chiplet", "HBM stack", "Silicon interposer", "Substrate", "Package assembly", "Final test"],
+    processDetails: [
+      {
+        why: "Logic die or chiplet is the demand anchor: if accelerator allocation changes, the whole CoWoS chain reprices capacity and delivery priority.",
+        materials: "Advanced-node wafer output, chiplet design freeze, customer allocation, known-good-die readiness.",
+        constraints: "Qualification window, node capacity and customer mix determine whether package demand can be pulled forward.",
+        companies: "Customer/platform: NVIDIA (NVDA) / Foundry: TSMC 台積電 (2330.TW)."
+      },
+      {
+        why: "HBM stack availability sets the memory bandwidth ceiling for AI/HPC packages and can block otherwise available packaging capacity.",
+        materials: "HBM stack allocation, DRAM die yield, stack test data and thermal envelope.",
+        constraints: "Supply allocation and known-good-stack yield are the main limits before package attach.",
+        companies: "Memory: Micron (MU) / Package integrator: TSMC 台積電 (2330.TW)."
+      },
+      {
+        why: "The silicon interposer connects logic and HBM, so its area, routing and TSV yield decide package size and throughput.",
+        materials: "Interposer wafers, TSV quality, routing density, inspection data and attach plan.",
+        constraints: "Area scaling, TSV yield and inspection throughput affect delivery more than headline package demand.",
+        companies: "Foundry/interposer: TSMC 台積電 (2330.TW) / Equipment: Tokyo Electron (8035.T)."
+      },
+      {
+        why: "Substrate capacity turns finished package demand into a supply-chain bottleneck because large AI packages need high-end substrate quality.",
+        materials: "ABF substrate supply, line-space capability, warpage control and lead-time data.",
+        constraints: "Substrate lead time and warpage control can delay CoWoS shipments even when foundry output is available.",
+        companies: "Substrate: Ibiden (4062.T) / Unimicron 欣興 (3037.TW)."
+      },
+      {
+        why: "Package assembly is where foundry, OSAT, substrate and HBM constraints converge into usable AI/HPC modules.",
+        materials: "Assembly capacity, bonding throughput, thermal interface, substrate attach and yield screens.",
+        constraints: "Yield learning and assembly cycle time determine whether capacity additions become real shipment volume.",
+        companies: "Foundry: TSMC 台積電 (2330.TW) / OSAT: ASE 日月光投控 (3711.TW)."
+      },
+      {
+        why: "Final test filters package quality and can become a hidden bottleneck as package complexity and thermal load rise.",
+        materials: "Test sockets, handlers, thermal condition, burn-in capacity and failure analysis.",
+        constraints: "Test time, socket supply and thermal condition reduce effective throughput if not expanded with assembly.",
+        companies: "Testing: Advantest (6857.T) / OSAT: ASE 日月光投控 (3711.TW)."
+      }
+    ],
     advantages: ["高頻寬", "低延遲", "適合 AI/HPC 大型封裝", "與 HBM 整合成熟"],
     limits: ["成本高", "產能與交期敏感", "interposer / substrate 複雜度高", "良率學習曲線長"],
     bottlenecks: [
@@ -69,6 +107,38 @@ export const technologyCatalog = {
     summary: "HBM integration 連接 memory stack、logic die 與高階封裝，是 AI 加速器的核心供應鏈限制之一。",
     technicalNotes: "重點在 HBM 供給、known-good-die、封裝 attach、測試時間、熱與良率。",
     process: ["DRAM die", "Stacking", "Known-good-die", "Package attach", "Final test"],
+    processDetails: [
+      {
+        why: "DRAM die output defines the raw supply pool for HBM and specialty memory exposure.",
+        materials: "DRAM wafer output, die yield, product mix and allocation by customer program.",
+        constraints: "Yield and product mix can limit HBM growth even before stack assembly.",
+        companies: "Memory: Micron (MU) / DRAM peers: Nanya 南亞科 (2408.TW)."
+      },
+      {
+        why: "Stacking converts DRAM die into HBM capacity; defects compound across layers.",
+        materials: "Stacking tools, TSV quality, thermal-mechanical controls and stack yield data.",
+        constraints: "Stack yield and equipment throughput determine effective HBM supply.",
+        companies: "Memory: Micron (MU) / Equipment: Tokyo Electron (8035.T)."
+      },
+      {
+        why: "Known-good-die screening prevents bad memory stacks from consuming scarce package capacity.",
+        materials: "Wafer test, probe cards, bin maps, burn-in data and failure analysis.",
+        constraints: "Test time and screen accuracy affect both yield and cycle time.",
+        companies: "Testing: Advantest (6857.T) / Memory: Micron (MU)."
+      },
+      {
+        why: "Package attach links HBM to the logic package, so memory supply only matters if the package flow can absorb it.",
+        materials: "CoWoS/advanced package capacity, interposer attach plan, thermal interface and substrate availability.",
+        constraints: "Package attach yield and CoWoS allocation can cap HBM pull-through.",
+        companies: "Foundry/package: TSMC 台積電 (2330.TW) / AI Accelerator: NVIDIA (NVDA)."
+      },
+      {
+        why: "Final test validates memory bandwidth and package reliability before shipment into AI systems.",
+        materials: "Thermal condition, high-speed test, burn-in capacity and quality screens.",
+        constraints: "Thermal load and longer test time can reduce output at peak demand.",
+        companies: "Testing: Advantest (6857.T) / Customer/platform: NVIDIA (NVDA)."
+      }
+    ],
     advantages: ["高頻寬", "低功耗/bit", "AI/HPC 需求明確"],
     limits: ["供給集中", "測試時間長", "封裝整合難度高"],
     bottlenecks: [["Supply", 86, "HBM 產能與客戶 allocation"], ["Test time", 74, "堆疊記憶體測試時間長"], ["Package attach", 70, "與 CoWoS/先進封裝高度耦合"]],
@@ -83,6 +153,44 @@ export const technologyCatalog = {
     summary: "AI server 平台不只看 GPU，也要同時看 HBM、主機板、電源、散熱、rack integration 與雲端客戶資格。",
     technicalNotes: "供應限制通常來自 accelerator allocation、HBM、power/thermal envelope、ODM 交付與客戶部署節奏。",
     process: ["Accelerator", "Memory", "Board", "Power / thermal", "Server", "Rack deployment"],
+    processDetails: [
+      {
+        why: "The accelerator sets system architecture, allocation pressure and the revenue pool for the rest of the AI server chain.",
+        materials: "GPU or custom ASIC allocation, software stack, platform roadmap and customer order visibility.",
+        constraints: "Allocation and platform cycle timing decide who can ship systems.",
+        companies: "AI Accelerator: NVIDIA (NVDA) / Custom ASIC: Broadcom (AVGO)."
+      },
+      {
+        why: "Memory bandwidth determines usable accelerator performance and can become the gating component.",
+        materials: "HBM/DRAM supply, module qualification, memory test and allocation data.",
+        constraints: "HBM supply, test time and package attach capacity can limit server shipments.",
+        companies: "Memory: Micron (MU) / Foundry/package: TSMC 台積電 (2330.TW)."
+      },
+      {
+        why: "Board design turns accelerators, memory, retimers and power components into manufacturable server platforms.",
+        materials: "PCB, retimer, connector, power delivery, signal-integrity validation and BOM data.",
+        constraints: "Signal integrity, BOM availability and design changes can delay ramp.",
+        companies: "ODM: Quanta 廣達 (2382.TW) / Server: Supermicro (SMCI)."
+      },
+      {
+        why: "Power and thermal design determine rack density and whether a deployment can fit into existing data-center limits.",
+        materials: "Power shelf, PSU, busbar, cold plate, fan/liquid cooling and thermal validation.",
+        constraints: "Power envelope, thermal reliability and facility readiness constrain adoption.",
+        companies: "Power: Delta Electronics 台達電 (2308.TW) / Infrastructure: Vertiv (VRT)."
+      },
+      {
+        why: "Server assembly is where ODM execution and qualification translate component availability into recognized shipments.",
+        materials: "System integration, firmware, burn-in, customer qualification and logistics slots.",
+        constraints: "Qualification cycle and customer acceptance can separate booked demand from shipment timing.",
+        companies: "Cloud Server: Wiwynn 緯穎 (6669.TW) / ODM: Quanta 廣達 (2382.TW)."
+      },
+      {
+        why: "Rack deployment is the final proof that compute supply, power, cooling and cloud demand are aligned.",
+        materials: "Rack plan, facility power, cooling loop, network fabric and operations telemetry.",
+        constraints: "Data-center power/cooling retrofit windows can slow monetization even when servers are available.",
+        companies: "Cloud: Microsoft (MSFT) / Amazon (AMZN) / Infrastructure: Vertiv (VRT)."
+      }
+    ],
     advantages: ["需求可見度高", "供應鏈拉動廣", "平台生態強"],
     limits: ["allocation 集中", "BOM 複雜", "客戶導入週期影響出貨"],
     bottlenecks: [["GPU allocation", 88, "平台供應限制會回傳到整機出貨"], ["HBM", 82, "記憶體與封裝共同限制"], ["Power / thermal", 71, "高功耗 rack 需要同步升級"]],
@@ -97,6 +205,44 @@ export const technologyCatalog = {
     summary: "液冷用於高功耗 AI rack 的熱管理，牽涉 cold plate、CDU、管路、維修與資料中心改造。",
     technicalNotes: "關鍵限制在可靠度、漏液風險、服務性、客戶資格與 facility readiness。",
     process: ["Cold plate", "Manifold", "CDU", "Rack", "Facility loop", "Monitoring"],
+    processDetails: [
+      {
+        why: "Cold plates determine heat transfer at the chip or module level and are the first qualification point for liquid cooling.",
+        materials: "Cold plate design, thermal interface, contact pressure, corrosion controls and leak-test data.",
+        constraints: "Contact quality and reliability validation decide whether customers accept the design.",
+        companies: "Thermal: AVC 奇鋐 (3017.TW) / Server: Supermicro (SMCI)."
+      },
+      {
+        why: "Manifolds distribute coolant across dense racks, so mechanical fit and serviceability affect deployment speed.",
+        materials: "Manifold, fittings, quick disconnects, pressure drop data and maintenance plan.",
+        constraints: "Leak risk, space limits and service access constrain field adoption.",
+        companies: "Thermal: AVC 奇鋐 (3017.TW) / ODM: Quanta 廣達 (2382.TW)."
+      },
+      {
+        why: "The CDU connects rack-level cooling to facility systems and can become the infrastructure bottleneck.",
+        materials: "Pump, heat exchanger, coolant loop, sensors and facility tie-in plan.",
+        constraints: "Facility readiness and pump reliability can gate scale deployment.",
+        companies: "Infrastructure: Vertiv (VRT) / Power: Delta Electronics 台達電 (2308.TW)."
+      },
+      {
+        why: "Rack integration proves the cooling design works under real AI server density.",
+        materials: "Rack layout, power shelf, busbar, coolant routing, airflow and service clearances.",
+        constraints: "Rack density, mechanical fit and customer qualification determine adoption timing.",
+        companies: "Server: Supermicro (SMCI) / Cloud Server: Wiwynn 緯穎 (6669.TW)."
+      },
+      {
+        why: "Facility loops decide whether data centers can absorb liquid-cooled AI racks without major delays.",
+        materials: "Data-center piping, heat rejection, water/power availability and retrofit schedule.",
+        constraints: "Install windows and facility power/cooling limits can slow server deployment.",
+        companies: "Cloud: Microsoft (MSFT) / Amazon (AMZN) / Infrastructure: Vertiv (VRT)."
+      },
+      {
+        why: "Monitoring turns cooling into an operational signal: leaks, pressure and thermal drift need continuous visibility.",
+        materials: "Sensors, telemetry, BMC integration, alert thresholds and maintenance records.",
+        constraints: "Poor alert quality or data integration can hide reliability risk.",
+        companies: "Infrastructure: Vertiv (VRT) / Power: Delta Electronics 台達電 (2308.TW)."
+      }
+    ],
     advantages: ["支援高功耗密度", "改善能源效率", "適合 AI cluster"],
     limits: ["導入成本高", "資料中心改造時間長", "維修流程需成熟"],
     bottlenecks: [["Qualification", 78, "客戶導入與維修流程需驗證"], ["Facility", 73, "資料中心改造進度限制"], ["Reliability", 70, "漏液與維護風險需管理"]],
@@ -111,6 +257,38 @@ export const technologyCatalog = {
     summary: "800G 光模組支援資料中心高速互連，AI cluster 擴張會提高光模組與交換器升級需求。",
     technicalNotes: "重點在 laser yield、module qualification、switch ASIC cycle、散熱與 hyperscaler adoption。",
     process: ["Laser", "DSP / driver", "Optical module", "Switch", "Data center fabric"],
+    processDetails: [
+      {
+        why: "Laser quality sets optical power, reach and reliability; poor yield limits module supply.",
+        materials: "Laser chip, epitaxy, packaging, burn-in and temperature reliability data.",
+        constraints: "Laser yield and reliability screens constrain module ramp.",
+        companies: "Optical Components: Coherent (COHR) / Module: Lumentum (LITE)."
+      },
+      {
+        why: "DSP and driver silicon shape power consumption and signal quality for 800G modules.",
+        materials: "DSP ASIC, driver IC, SerDes readiness, firmware and thermal profile.",
+        constraints: "Power and process-node cost can limit dense deployment.",
+        companies: "ASIC: Broadcom (AVGO) / Module: Lumentum (LITE)."
+      },
+      {
+        why: "Optical modules turn components into qualified network capacity for AI clusters.",
+        materials: "Laser, DSP, packaging, fiber connector, module test and qualification records.",
+        constraints: "Module qualification and thermal reliability decide cloud adoption timing.",
+        companies: "Module: Lumentum (LITE) / Optical Components: Coherent (COHR)."
+      },
+      {
+        why: "Switch platforms create the demand pull for optics and decide speed migration timing.",
+        materials: "Switch ASIC, SerDes, PCB, optics cage, thermal design and customer qualification.",
+        constraints: "Switch ASIC cycle and thermal envelope can delay optics volume.",
+        companies: "Switch: Accton 智邦 (2345.TW) / ASIC: Broadcom (AVGO)."
+      },
+      {
+        why: "Data-center fabric adoption proves whether optical upgrades are needed at cluster scale.",
+        materials: "Network topology, cable plan, telemetry, failure rate and cloud deployment schedule.",
+        constraints: "Cloud capex timing, interoperability and operations readiness affect pull-through.",
+        companies: "Cloud: Amazon (AMZN) / Microsoft (MSFT) / Platform: NVIDIA (NVDA)."
+      }
+    ],
     advantages: ["高頻寬互連", "支援資料中心擴張", "與 switch ASIC 週期連動"],
     limits: ["認證週期長", "光元件良率敏感", "客戶採用節奏不一"],
     bottlenecks: [["Laser yield", 72, "光源良率與供給影響模組交付"], ["Qualification", 69, "雲端客戶認證週期長"], ["Thermal", 57, "高速模組散熱需控制"]],
@@ -139,6 +317,38 @@ export const technologyCatalog = {
     summary: "沉積與蝕刻是製程設備鏈的核心，用於建立與移除材料層，直接影響精度、良率與節點升級。",
     technicalNotes: "設備交期、chamber availability、process recipe、service capacity 與 fab ramp 節奏是觀察重點。",
     process: ["Material prep", "Deposition", "Etch", "Metrology", "Process feedback"],
+    processDetails: [
+      {
+        why: "Material prep controls wafer surface and chemistry before high-value chamber steps begin.",
+        materials: "Pre-clean chemistry, wafer condition, gas/chemical supply and contamination data.",
+        constraints: "Chemical compatibility and contamination control affect downstream yield.",
+        companies: "Equipment: Applied Materials (AMAT) / Tokyo Electron (8035.T)."
+      },
+      {
+        why: "Deposition creates the thin films that define device structures and advanced packaging layers.",
+        materials: "Chamber availability, precursor gases, recipe, film uniformity and defect data.",
+        constraints: "Tool lead time and recipe maturity can limit fab ramp speed.",
+        companies: "Equipment: Applied Materials (AMAT) / Tokyo Electron (8035.T)."
+      },
+      {
+        why: "Etch removes material selectively; precision here determines pattern fidelity and yield.",
+        materials: "Etch chamber, plasma recipe, selectivity data, endpoint control and consumables.",
+        constraints: "Recipe tuning and chamber availability constrain advanced-node yield learning.",
+        companies: "Equipment: Lam Research (LRCX) / Foundry: TSMC 台積電 (2330.TW)."
+      },
+      {
+        why: "Metrology tells whether deposition and etch are inside spec before bad wafers continue downstream.",
+        materials: "Inspection tools, overlay/thickness data, defect maps and process-control limits.",
+        constraints: "Metrology throughput and sensitivity affect feedback speed.",
+        companies: "Inspection: KLA (KLAC) / Foundry: TSMC 台積電 (2330.TW)."
+      },
+      {
+        why: "Process feedback turns tool data into yield learning and service demand.",
+        materials: "SPC data, chamber history, field service records, spare parts and recipe changes.",
+        constraints: "Data quality and service capacity determine how quickly ramps stabilize.",
+        companies: "Equipment service: Applied Materials (AMAT) / Tokyo Electron (8035.T)."
+      }
+    ],
     advantages: ["製程必要性高", "服務收入韌性", "與先進節點緊密相連"],
     limits: ["資本支出週期敏感", "客戶驗證時間長", "安裝與服務瓶頸"],
     bottlenecks: [["Lead time", 78, "關鍵工具交期影響產能 ramp"], ["Install base", 70, "服務能力跟不上時會拖累產線"], ["Recipe", 66, "新節點需共同開發 recipe"]],
@@ -399,6 +609,15 @@ Object.assign(technologyCatalog, {
   }
 });
 
+const authoredStepDetailTechnologyIds = new Set([
+  "cowos",
+  "gpu-platform",
+  "deposition-etch",
+  "liquid-cooling",
+  "hbm-integration",
+  "800g-optical"
+]);
+
 for (const [id, tech] of Object.entries(technologyCatalog)) {
   technologyCatalog[id] = {
     ...defaultTechnologyTemplate,
@@ -406,6 +625,7 @@ for (const [id, tech] of Object.entries(technologyCatalog)) {
     name: tech.name || id,
     relatedIndustries: tech.relatedIndustries || ["advanced-packaging"],
     process: tech.process || defaultTechnologyTemplate.process,
+    processDetails: authoredStepDetailTechnologyIds.has(id) ? tech.processDetails : undefined,
     advantages: tech.advantages || ["供應鏈定位清楚", "可與公司角色連結", "適合納入技術比較"],
     limits: tech.limits || ["需搭配來源品質檢查", "客戶資格與導入時間會影響解讀"],
     bottlenecks: tech.bottlenecks || defaultTechnologyTemplate.bottlenecks,

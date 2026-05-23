@@ -3,14 +3,23 @@ import { displayCompany, escapeHtml } from "../utils.js";
 import { companyCard } from "./companyCards.js";
 import { confidenceBadge, marketBadge, techBadge } from "./badges.js";
 
-export function heatCell(item, score, active) {
-  const className = score > 0.4 ? "positive" : score < -0.4 ? "negative" : "";
-  const sign = score > 0 ? "+" : "";
+export function heatCell(row, active) {
+  const score = row.score;
+  const hasScore = score != null;
+  const className = hasScore && score > 0.4 ? "positive" : hasScore && score < -0.4 ? "negative" : "";
+  const sign = hasScore && score > 0 ? "+" : "";
+  const scoreLabel = hasScore ? `${sign}${score.toFixed(1)}%` : "待接入";
   return `
-    <button class="heat-cell ${className} ${active ? "active" : ""}" data-industry="${escapeHtml(item[0])}" type="button">
-      <strong>${escapeHtml(item[1])}</strong>
-      <span class="heat-score ${className}">${sign}${score.toFixed(1)}%</span>
-      <span class="heat-meta">${escapeHtml(item[2])}</span>
+    <button class="heat-cell ${className} ${active ? "active" : ""}" data-industry="${escapeHtml(row.id)}" type="button">
+      <span class="heat-cell-head">
+        <strong>${escapeHtml(row.label)}</strong>
+        <span class="heat-score ${className}">${escapeHtml(scoreLabel)}</span>
+      </span>
+      <span class="heat-meta">${escapeHtml(row.leaderText)}</span>
+      <span class="heat-foot">
+        <small>${escapeHtml(row.coverage.label)}</small>
+        <small>${escapeHtml(row.rangeUnsupported ? "此期間待接歷史價格" : row.sourceLabel)}</small>
+      </span>
     </button>
   `;
 }
@@ -98,7 +107,7 @@ export function drawer(companyId, relationText = "") {
       ${marketBadge(company.market)}
       ${company.roles.map(role => `<span class="role-chip">${escapeHtml(role)}</span>`).join("")}
       ${techBadge(company.technicalLevel)}
-      <span class="tag">Exposure ${company.exposure}%</span>
+      <span class="tag">Exposure score ${company.exposure}%</span>
     </div>
     <div class="drawer-section">
       <strong>定位摘要</strong>
@@ -108,13 +117,14 @@ export function drawer(companyId, relationText = "") {
     <div class="drawer-section">
       <strong>上下游關係</strong>
       <p class="small">${escapeHtml(relationText || "點擊供應鏈、關係圖或表格列後，這裡會顯示對應的上下游角色與關係強度。")}</p>
+      <p class="small">高亮代表直接供應鏈連動，不代表股價相關性；曝險為獨立主題分數，不需要跨產業加總為 100。</p>
       <div class="fact-list compact">
         <div class="fact-row"><span class="fact-label">Suppliers</span><span class="fact-value">${escapeHtml(company.suppliers.join(" / "))}</span></div>
         <div class="fact-row"><span class="fact-label">Customers</span><span class="fact-value">${escapeHtml(company.customers.join(" / "))}</span></div>
         <div class="fact-row"><span class="fact-label">Alternatives</span><span class="fact-value">${escapeHtml(company.alternatives.join(" / "))}</span></div>
       </div>
     </div>
-    <button class="pill-button primary" data-company-id="${escapeHtml(companyId)}" data-route="company" type="button">View company page</button>
+    <button class="pill-button primary" data-company-id="${escapeHtml(companyId)}" data-open-company-page type="button">進入公司頁</button>
   `;
 }
 

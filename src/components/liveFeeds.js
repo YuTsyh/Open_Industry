@@ -1,4 +1,5 @@
 import { liveFeedProviders, liveFeedRoadmap, officialSources } from "../data.js";
+import { formatPriceSnapshot } from "../domain/companyMetrics.js";
 import { escapeHtml } from "../utils.js";
 import { confidenceBadge } from "./badges.js";
 
@@ -10,16 +11,34 @@ function sourceLinks(keys = []) {
     .join("");
 }
 
+function priceSnapshotCard(snapshot = {}) {
+  const formatted = formatPriceSnapshot(snapshot);
+  return `
+    <article class="live-feed-card price-snapshot-card ${snapshot.status === "source-ready" ? "is-muted" : ""}">
+      <div class="live-feed-title">
+        <strong>價格快照</strong>
+        <span class="tag">${escapeHtml(formatted.status)}</span>
+      </div>
+      <div class="price-quote">
+        <span>${escapeHtml(formatted.value)}</span>
+        <small>${escapeHtml(formatted.change)}</small>
+      </div>
+      <p class="small">${escapeHtml(snapshot.asOf || "尚未設定抓取時間")} · ${escapeHtml(snapshot.provider || "provider slot")}</p>
+      <div class="source-row">${sourceLinks(snapshot.sourceKeys)}</div>
+    </article>
+  `;
+}
+
 export function liveDataReadinessPanel() {
   return `
     <section class="panel live-data-readiness">
       <div class="panel-header">
         <div>
           <p class="eyebrow">Live data readiness</p>
-          <h2>未來即時資訊接入設計</h2>
-          <p class="small">目前仍使用 placeholder，不顯示假即時數據；價格、公告、新聞與 options 先以資料來源與後端需求呈現，避免 UI 因來源有無而跳動。</p>
+          <h2>即時資訊接入設計</h2>
+          <p class="small">價格、公告、新聞與 options 先以欄位契約呈現；正式版由後端負責授權、快取、去重、時間戳與來源追蹤。</p>
         </div>
-        ${confidenceBadge("source", "official source map")}
+        ${confidenceBadge("source", "provider map")}
       </div>
       <div class="live-feed-grid">
         ${liveFeedRoadmap.map(item => `
@@ -40,20 +59,21 @@ export function liveDataReadinessPanel() {
 }
 
 export function companyLiveFeedPanel(company) {
-  const feeds = Object.entries(company.liveFeeds || {});
-  if (!feeds.length) return "";
+  const feeds = Object.entries(company.liveFeeds || {}).filter(([type]) => type !== "priceSnapshot");
+  if (!feeds.length && !company.liveFeeds?.priceSnapshot) return "";
 
   return `
     <section class="panel live-feed-panel">
       <div class="panel-header">
         <div>
           <p class="eyebrow">Realtime-ready slots</p>
-          <h2>價格、公告、新聞與 options 接入槽</h2>
-          <p class="small">這些是未來後端資料表或資料供應商接入後會填入的區塊；原型階段只顯示可追溯來源與更新節奏，不混入真實財務數據。</p>
+          <h2>價格、公告、新聞與 options 接入</h2>
+          <p class="small">價格卡顯示目前可取得的快照或 provider-ready 狀態；其餘 live feeds 保留為後端接入槽位，不在前端偽造即時資料。</p>
         </div>
         ${confidenceBadge(company.confidence)}
       </div>
       <div class="live-feed-grid">
+        ${priceSnapshotCard(company.liveFeeds?.priceSnapshot)}
         ${feeds.map(([type, feed]) => `
           <article class="live-feed-card ${feed.status === "not-applicable" ? "is-muted" : ""}">
             <div class="live-feed-title">

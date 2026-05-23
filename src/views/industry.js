@@ -36,7 +36,7 @@ export function renderIndustry(state, industry) {
         ${tabs.map(([id, label]) => `<button class="tab-button ${tab === id ? "active" : ""}" data-industry-tab="${id}" type="button">${label}</button>`).join("")}
       </nav>
       ${tab === "overview" ? renderIndustryOverview(state, industry) : ""}
-      ${tab === "map" ? renderIndustryMap(industry) : ""}
+      ${tab === "map" ? renderIndustryMap(state, industry) : ""}
       ${tab === "landscape" ? renderIndustryLandscape(state, industry) : ""}
       ${tab === "bottlenecks" ? renderBottlenecks(state, industry) : ""}
       ${tab === "technology" ? renderIndustryTechnology(state, industry) : ""}
@@ -74,12 +74,12 @@ function renderIndustryOverview(state, industry) {
   `;
 }
 
-function renderIndustryMap(industry) {
+function renderIndustryMap(state, industry) {
   return `
     <section class="tab-panel active">
       <section class="panel">
         <div class="panel-header"><div><p class="eyebrow">Full topology</p><h2>供應鏈拓撲圖</h2><p class="small">滑過節點看相鄰關係；點擊節點開啟公司抽屜。</p></div>${confidenceBadge("good", "關係完整")}</div>
-        ${topologyBoard(industry)}
+        ${topologyBoard(industry, state.industryId)}
       </section>
     </section>
   `;
@@ -87,7 +87,7 @@ function renderIndustryMap(industry) {
 
 function renderIndustryLandscape(state, industry) {
   const ids = industryCompanyIds(industry);
-  const rows = companyRows(ids, state.filters);
+  const rows = companyRows(ids, state.filters, state.industryId);
   const cardViewClass = state.companyView === "card" ? "card-view" : "";
   return `
     <section class="tab-panel active landscape ${cardViewClass}">

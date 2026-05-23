@@ -10,6 +10,69 @@ function fixedSlots(items = [], count, emptyFactory) {
   return Array.from({ length: count }, (_, index) => items[index] || emptyFactory(index));
 }
 
+function stepSignals(step, tech) {
+  const text = step.toLowerCase();
+  if (text.includes("hbm") || text.includes("dram") || text.includes("memory")) {
+    return "HBM/DRAM die, known-good-die test results, memory allocation, package attach plan.";
+  }
+  if (text.includes("substrate") || text.includes("interposer") || text.includes("tsv")) {
+    return "Substrate/interposer supply, line-space capability, via yield, warpage and lead-time data.";
+  }
+  if (text.includes("test") || text.includes("inspection") || text.includes("validation")) {
+    return "Test sockets, probe/burn-in capacity, yield screens, failure analysis and qualification reports.";
+  }
+  if (text.includes("thermal") || text.includes("cool") || text.includes("power") || text.includes("rack")) {
+    return "Power envelope, cooling loop, thermal interface, facility readiness and reliability data.";
+  }
+  if (text.includes("laser") || text.includes("optical") || text.includes("switch")) {
+    return "Laser yield, optical module qualification, DSP/SerDes readiness and data-center adoption signals.";
+  }
+  if (text.includes("die") || text.includes("logic") || text.includes("chiplet") || text.includes("accelerator")) {
+    return "Die supply, design qualification, allocation status, packaging interface and customer demand signals.";
+  }
+  return `${tech.name} BOM, process recipe, qualification status, capacity plan and source-backed supplier notes.`;
+}
+
+function stepConstraint(tech, index) {
+  const bottleneck = tech.bottlenecks?.[index % (tech.bottlenecks?.length || 1)];
+  if (!bottleneck) return "Coverage gap: confirm capacity, yield, qualification and source freshness before using this step as an investment signal.";
+  const [name, value, note] = bottleneck;
+  return `${name} (${value}%): ${note}`;
+}
+
+function stepCompanyMap(tech, index) {
+  const primary = tech.roles?.[index % (tech.roles?.length || 1)];
+  const related = (tech.roles || [])
+    .filter((_, roleIndex) => roleIndex !== index % (tech.roles?.length || 1))
+    .slice(0, 2)
+    .map(([role, company]) => `${role}: ${company}`);
+  if (!primary) return "Company map is pending source validation.";
+  return [`${primary[0]}: ${primary[1]}`, ...related].join(" / ");
+}
+
+function stepWhy(step, tech) {
+  return `${step} is where ${tech.name} turns from a concept into an investable supply-chain dependency. Track it to understand who controls throughput, who absorbs qualification risk, and which upstream constraint can move downstream company exposure.`;
+}
+
+function processDetailSlots(tech) {
+  const processSlots = fixedSlots(
+    tech.process,
+    PROCESS_SLOT_COUNT,
+    index => `Research slot ${String(index + 1).padStart(2, "0")}`
+  );
+  return processSlots.map((step, index) => {
+    const detail = tech.processDetails?.[index] || {};
+    return {
+      step,
+      why: detail.why || stepWhy(step, tech),
+      materials: detail.materials || stepSignals(step, tech),
+      constraints: detail.constraints || stepConstraint(tech, index),
+      companies: detail.companies || stepCompanyMap(tech, index),
+      isEmpty: !tech.process[index]
+    };
+  });
+}
+
 export function technologyProcessFlow(tech) {
   const processSlots = fixedSlots(
     tech.process,
@@ -38,6 +101,36 @@ export function technologyProcessFlow(tech) {
             </div>
           `;
         }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+export function technologyStepExplainer(tech) {
+  const detailSlots = processDetailSlots(tech);
+  return `
+    <section class="panel technology-step-explainer">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Process research map</p>
+          <h2>每個製程步驟如何連到材料、限制與公司</h2>
+          <p class="small">把流程拆成可查證的研究問題：這一步需要什麼材料或訊號、限制在哪裡、哪些公司角色最值得追蹤。</p>
+        </div>
+        ${confidenceBadge("source", "step map")}
+      </div>
+      <div class="step-detail-grid">
+        ${detailSlots.map((detail, index) => `
+          <article class="step-detail-card${detail.isEmpty ? " is-empty" : ""}">
+            <span class="step-index">${String(index + 1).padStart(2, "0")}</span>
+            <h3>${escapeHtml(detail.step)}</h3>
+            <p class="small">${escapeHtml(detail.why)}</p>
+            <dl class="step-detail-list">
+              <div><dt>Materials / signals</dt><dd>${escapeHtml(detail.materials)}</dd></div>
+              <div><dt>Constraints</dt><dd>${escapeHtml(detail.constraints)}</dd></div>
+              <div><dt>Company map</dt><dd>${escapeHtml(detail.companies)}</dd></div>
+            </dl>
+          </article>
+        `).join("")}
       </div>
     </section>
   `;

@@ -6,7 +6,8 @@ import {
   technologyComparisonTable,
   technologyMaturityPanel,
   technologyProcessFlow,
-  technologyRoleMap
+  technologyRoleMap,
+  technologyStepExplainer
 } from "../components/technologyDetails.js";
 import { officialTechnologySources } from "../components/officialEvidence.js";
 import { liveDataReadinessPanel } from "../components/liveFeeds.js";
@@ -43,6 +44,7 @@ export function renderTechnology(state) {
       </section>
 
       ${technologyProcessFlow(tech)}
+      ${technologyStepExplainer(tech)}
       ${officialTechnologySources(state.techId)}
       ${liveDataReadinessPanel()}
 

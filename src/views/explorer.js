@@ -21,7 +21,7 @@ export function renderExplorer(state, industry) {
             <h1>從產業類別進入公司定位與技術深度</h1>
             <p class="muted">${escapeHtml(industry.hero)} 系統會同時呈現公司節點、純度、技術層級、瓶頸與上下游關係。</p>
             <div class="hero-actions">
-              <button class="pill-button primary" data-route="industry" type="button">打開完整拓撲</button>
+              <button class="pill-button primary" data-route="industry" data-industry-tab-jump="map" type="button">打開完整拓撲</button>
               <button class="pill-button secondary" data-route="company" type="button">比較公司</button>
             </div>
           </div>
@@ -52,7 +52,7 @@ export function renderExplorer(state, industry) {
               </div>
               <div class="topology-legend"><span class="tag">Upstream</span><span class="tag">Midstream</span><span class="tag">Downstream</span></div>
             </div>
-            ${supplyChainMap(industry)}
+            ${supplyChainMap(industry, state.industryId)}
           </section>
           <aside class="panel">
             <p class="eyebrow">Industry snapshot</p>

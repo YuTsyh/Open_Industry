@@ -2,7 +2,7 @@ export const liveFeedProviders = {
   twPrice: {
     label: "TWSE price feed",
     market: "TW",
-    sourceKeys: ["twseOpenApi"],
+    sourceKeys: ["twseOpenApi", "twseStockDay"],
     coverage: "Taiwan listed equities, delayed/end-of-day prototype slot",
     backendNeed: "exchange-license aware collector plus normalized OHLC cache"
   },
@@ -37,7 +37,7 @@ export const liveFeedProviders = {
   usPrice: {
     label: "U.S. equity price feed",
     market: "US",
-    sourceKeys: ["nasdaqDataLink"],
+    sourceKeys: ["nasdaqDataLink", "cnbcQuotes", "stockAnalysisQuotes"],
     coverage: "delayed, historical or licensed real-time U.S. equities",
     backendNeed: "vendor/exchange license boundary plus symbol master"
   },
@@ -53,29 +53,29 @@ export const liveFeedProviders = {
 export const liveFeedRoadmap = [
   {
     id: "price",
-    label: "價格 / 熱力圖",
-    currentState: "Prototype uses placeholder returns only.",
+    label: "價格 / 報價快照",
+    currentState: "前端顯示可取得的延遲或收盤快照；正式即時報價需交易所或資料商授權。",
     productionShape: "normalized_daily_prices and intraday_snapshots tables keyed by market + ticker + timestamp",
     providers: ["twPrice", "jpPrice", "usPrice"]
   },
   {
     id: "filings",
-    label: "公告 / 財報",
-    currentState: "Official source cards are linked but not ingested.",
+    label: "公告 / 申報",
+    currentState: "官方來源已連結，後端接入後可轉成公司事件與來源快照。",
     productionShape: "filings table with source_url, published_at, issuer_id, category, extracted_summary",
     providers: ["twDisclosure", "jpDisclosure", "usFilings"]
   },
   {
     id: "news",
-    label: "新聞 / IR 事件",
-    currentState: "Shown as a watch queue to avoid fake news.",
+    label: "新聞 / IR 更新",
+    currentState: "目前以 watch queue 呈現，避免在靜態原型中捏造新聞。",
     productionShape: "events table with source_type, confidence, linked_company_ids and linked_industry_ids",
     providers: ["twDisclosure", "jpDisclosure", "usFilings"]
   },
   {
     id: "options",
-    label: "Options / 波動線索",
-    currentState: "U.S.-only placeholder slots for companies with listed options coverage.",
+    label: "Options / 選擇權鏈",
+    currentState: "美股公司保留 options slot；正式版需 OCC/Cboe 或授權資料商。",
     productionShape: "option_chains, option_open_interest and unusual_activity tables keyed by OCC symbol",
     providers: ["usOptions"]
   }

@@ -17,7 +17,13 @@ Required fields:
 - `name`, `ticker`, `market`
 - `roles`, `exposure`, `technicalLevel`, `confidence`
 - `summary`, `customers`, `suppliers`, `competitors`, `alternatives`, `moat`
+- `industryExposures`: per-industry exposure map, keyed by industry id
+- `roleDetails`: sourced role explanations shown on Company Detail
+- `capabilityLadder`: high-end / mainstream / replaceable capability rows
+- `swot`: `strengths`, `weaknesses`, `opportunities`, `threats`
 - `sources`
-- `liveFeeds.price`, `liveFeeds.filings`, `liveFeeds.news`, `liveFeeds.options`
+- `liveFeeds.priceSnapshot`, `liveFeeds.price`, `liveFeeds.filings`, `liveFeeds.news`, `liveFeeds.options`
 
-Prototype rule: use realistic placeholder exposure and score values only. Do not add real financial metrics until a licensed backend feed is connected.
+Price rule: `priceSnapshot` may hold public delayed/closing snapshots with provider, timestamp, and source keys. Do not represent these as real-time quotes. Real-time market data should come from the backend data layer and licensed providers.
+
+Exposure rule: `exposure` is the company-level summary score; `industryExposures` is the source for per-industry comparisons. These are independent 0-100 topic relevance / purity scores, not revenue mix, ownership, or portfolio weights, so they do not need to sum to 100. Do not reuse a single score across every industry unless the company truly has the same relationship to each sector.

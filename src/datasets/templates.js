@@ -13,8 +13,25 @@ export const companyTemplate = {
   alternatives: [],
   moat: "",
   sources: [],
+  industryExposures: {},
+  roleDetails: [],
+  capabilityLadder: [],
+  swot: {
+    strengths: [],
+    weaknesses: [],
+    opportunities: [],
+    threats: []
+  },
   liveFeeds: {
     price: { status: "planned", cadence: "", sourceKeys: [] },
+    priceSnapshot: {
+      status: "source-ready",
+      last: null,
+      currency: "",
+      asOf: "",
+      provider: "",
+      sourceKeys: []
+    },
     filings: { status: "planned", cadence: "", sourceKeys: [] },
     news: { status: "planned", cadence: "", sourceKeys: [] },
     options: { status: "not-applicable", cadence: "", sourceKeys: [] }

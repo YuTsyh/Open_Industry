@@ -1,9 +1,9 @@
 export const heatmapOptions = {
   ranges: [
-    { id: "1w", label: "1W", adjustment: -1.1 },
-    { id: "1m", label: "1M", adjustment: 0 },
-    { id: "3m", label: "3M", adjustment: 0.8 },
-    { id: "ytd", label: "YTD", adjustment: 1.4 }
+    { id: "latest", label: "最新快照" },
+    { id: "1w", label: "1W" },
+    { id: "1m", label: "1M" },
+    { id: "ytd", label: "YTD" }
   ],
   universes: [
     { id: "cap", label: "市值 Top 10" },

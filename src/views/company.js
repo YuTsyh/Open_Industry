@@ -1,8 +1,60 @@
-import { companies } from "../data.js";
+import { companies, officialSources } from "../data.js";
+import { formatPriceSnapshot, topIndustryExposures } from "../domain/companyMetrics.js";
 import { escapeHtml } from "../utils.js";
 import { confidenceBadge, marketBadge, techBadge } from "../components/badges.js";
 import { relationshipGraph } from "../components/maps.js";
 import { companyLiveFeedPanel } from "../components/liveFeeds.js";
+
+function sourceTags(keys = []) {
+  return keys
+    .map(key => officialSources[key])
+    .filter(Boolean)
+    .slice(0, 4)
+    .map(source => `<a class="tag" href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}</a>`)
+    .join("");
+}
+
+function exposureGrid(company) {
+  const exposures = topIndustryExposures(company, 6);
+  return `
+    <section class="card industry-exposure-grid">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Industry-specific exposure</p>
+          <h2>產業別曝險是獨立分數，不是加總比例</h2>
+          <p class="small">每個分數都是 0-100 的研究相關度 / 純度指標，用來比較同一家公司在不同產業主題中的供應鏈關聯強弱；各產業分數彼此獨立，不需要加總小於 100。若未來要做營收拆分，會另設 revenue mix 欄位並要求總和約等於 100。</p>
+        </div>
+        ${confidenceBadge(company.confidence)}
+      </div>
+      <div class="exposure-grid">
+        ${exposures.map(item => `
+          <article class="exposure-cell">
+            <div class="exposure-head">
+              <strong>${escapeHtml(item.label || item.industryId)}</strong>
+              <span>${item.score}%</span>
+            </div>
+            <span class="bar" style="--value:${item.score}%"><i></i></span>
+            <p class="small">${escapeHtml(item.thesis)}</p>
+          </article>
+        `).join("")}
+      </div>
+      <p class="small exposure-note">Exposure score = 主題相關度，不等於營收占比、持股比例或投資組合權重。</p>
+    </section>
+  `;
+}
+
+function priceSummary(company) {
+  const snapshot = company.liveFeeds?.priceSnapshot || {};
+  const formatted = formatPriceSnapshot(snapshot);
+  return `
+    <div class="score-card price-snapshot-card">
+      <span class="small">Price snapshot</span>
+      <strong class="metric-value">${escapeHtml(formatted.value)}</strong>
+      <span class="small">${escapeHtml(formatted.change)}</span>
+      <span class="small">${escapeHtml(snapshot.asOf || "source-ready")}</span>
+    </div>
+  `;
+}
 
 export function renderCompany(state) {
   const companyId = state.companyId || "tsmc";
@@ -12,19 +64,52 @@ export function renderCompany(state) {
       <section class="company-header">
         <article class="summary-card">
           <div class="summary-title">
-            <div><p class="eyebrow">Company detail</p><h1>${escapeHtml(company.name)} (${escapeHtml(company.ticker)})</h1><p class="muted">${marketBadge(company.market)} ${company.roles.map(role => `<span class="role-chip">${escapeHtml(role)}</span>`).join(" ")}</p></div>
-            <button class="icon-button" type="button" aria-label="收藏公司">☆</button>
+            <div>
+              <p class="eyebrow">Company detail</p>
+              <h1>${escapeHtml(company.name)} (${escapeHtml(company.ticker)})</h1>
+              <p class="muted">${marketBadge(company.market)} ${company.roles.map(role => `<span class="role-chip">${escapeHtml(role)}</span>`).join(" ")}</p>
+            </div>
+            <button class="icon-button" type="button" aria-label="Add to favorites">☆</button>
           </div>
           <p class="muted">${escapeHtml(company.summary)}</p>
+          <div class="source-row">${sourceTags(company.sources)}</div>
         </article>
-        <div class="score-card"><span class="small">Purity score</span><strong class="metric-value">${company.exposure}%</strong>${confidenceBadge(company.confidence)}</div>
+        <div class="score-card"><span class="small">Core exposure score</span><strong class="metric-value">${company.exposure}%</strong><span class="small">非加總式主題分數</span>${confidenceBadge(company.confidence)}</div>
         <div class="score-card"><span class="small">Technical level</span><strong class="metric-value">${escapeHtml(company.technicalLevel)}</strong>${techBadge(company.technicalLevel)}</div>
+        ${priceSummary(company)}
       </section>
+
       <div class="two-column">
         <div class="page-shell">
-          <article class="card"><p class="eyebrow">Positioning</p><h2>公司定位摘要</h2><p class="muted">${escapeHtml(company.summary)} 護城河重點：${escapeHtml(company.moat)}</p>${confidenceBadge(company.confidence)}</article>
-          <article class="card"><h2>產品 / 服務矩陣</h2><div class="matrix">${company.roles.map(role => `<div class="matrix-cell"><strong>${escapeHtml(role)}</strong><p class="small">公司角色與收入曝險欄位可由內容團隊補值。</p></div>`).join("")}</div></article>
-          <article class="card"><h2>高階 vs 低階能力階梯</h2><div class="timeline"><div class="timeline-step"><strong>High-end</strong><span class="small">客戶資格、技術深度、良率管理與供應鏈整合。</span></div><div class="timeline-step"><strong>Mid-range</strong><span class="small">成熟方案、可替代性與成本效率。</span></div><div class="timeline-step"><strong>Low-end</strong><span class="small">成本導向、成熟應用與價格競爭。</span></div></div></article>
+          <article class="card">
+            <p class="eyebrow">Positioning</p>
+            <h2>公司定位摘要</h2>
+            <p class="muted">${escapeHtml(company.summary)} ${escapeHtml(company.moat)}</p>
+            ${confidenceBadge(company.confidence)}
+          </article>
+          <article class="card">
+            <h2>供應鏈角色</h2>
+            <div class="matrix">
+              ${(company.roleDetails || []).map(item => `
+                <div class="matrix-cell">
+                  <strong>${escapeHtml(item.role)}</strong>
+                  <p class="small">${escapeHtml(item.detail)}</p>
+                  <div class="source-row">${sourceTags(item.sourceKeys)}</div>
+                </div>
+              `).join("")}
+            </div>
+          </article>
+          <article class="card">
+            <h2>能力階梯</h2>
+            <div class="timeline">
+              ${(company.capabilityLadder || []).map(item => `
+                <div class="timeline-step">
+                  <strong>${escapeHtml(item.level)}</strong>
+                  <span class="small">${escapeHtml(item.detail)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </article>
         </div>
         <aside class="panel key-facts-panel">
           <p class="eyebrow">Key facts</p>
@@ -38,10 +123,12 @@ export function renderCompany(state) {
           </div>
         </aside>
       </div>
+
+      ${exposureGrid(company)}
       ${companyLiveFeedPanel(company)}
       ${relationshipGraph(company, companyId)}
       ${renderCompanyTabs(company, state.companyTab || "role")}
-      <footer class="disclaimer">For research and educational use only. Not investment advice. 本原型不含真實財務數據或即時價格。</footer>
+      <footer class="disclaimer">For research and educational use only. Not investment advice. 價格與曝險分數為研究介面資料，不代表投資建議。</footer>
     </section>
   `;
 }
@@ -58,7 +145,7 @@ function renderCompanyTabs(company, activeTab) {
   ];
   return `
     <section class="company-tabs-block">
-      <nav class="sticky-tabs" aria-label="公司頁籤">
+      <nav class="sticky-tabs" aria-label="Company detail tabs">
         ${tabs.map(([id, label]) => `<button class="tab-button ${normalizedTab === id ? "active" : ""}" data-company-tab="${id}" type="button">${label}</button>`).join("")}
       </nav>
       <div class="company-tab-panel">
@@ -76,8 +163,15 @@ function renderCompanyTabs(company, activeTab) {
 function renderRoleTab(company) {
   return `
     <div class="overview-grid">
-      <article class="card"><p class="eyebrow">Role summary</p><h2>供應鏈角色</h2><p class="muted">${escapeHtml(company.roles.join(" / "))}。此角色決定公司是受上游供給限制，還是受下游客戶採購節奏牽動。</p>${confidenceBadge(company.confidence)}</article>
-      <article class="card"><p class="eyebrow">Exposure logic</p><h2>純度 / 曝險解讀</h2><p class="muted">Exposure ${company.exposure}% 為原型欄位，用來示範研究產品如何比較公司與產業鏈關聯，不代表真實營收或股價資料。</p>${confidenceBadge("source", "原型欄位")}</article>
+      ${(company.roleDetails || []).map(item => `
+        <article class="card">
+          <p class="eyebrow">Role evidence</p>
+          <h2>${escapeHtml(item.role)}</h2>
+          <p class="muted">${escapeHtml(item.detail)}</p>
+          <div class="source-row">${sourceTags(item.sourceKeys)}</div>
+        </article>
+      `).join("")}
+      ${exposureGrid(company)}
     </div>
   `;
 }
@@ -86,11 +180,15 @@ function renderCapabilityTab(company) {
   return `
     <article class="card">
       <p class="eyebrow">Capability ladder</p>
-      <h2>技術能力階梯</h2>
-      <div class="timeline">
-        <div class="timeline-step"><strong>高階能力</strong><span class="small">${escapeHtml(company.moat)}</span></div>
-        <div class="timeline-step"><strong>量產能力</strong><span class="small">看客戶資格、良率爬坡、供應鏈協作與服務能力。</span></div>
-        <div class="timeline-step"><strong>可替代風險</strong><span class="small">與 ${escapeHtml(company.alternatives.join(" / "))} 比較角色重疊與技術差距。</span></div>
+      <h2>高階 / 主流 / 可替代能力拆解</h2>
+      <div class="timeline capability-ladder">
+        ${(company.capabilityLadder || []).map(item => `
+          <div class="timeline-step">
+            <strong>${escapeHtml(item.level)}</strong>
+            <span class="small">${escapeHtml(item.detail)}</span>
+            <div class="source-row">${sourceTags(item.sourceKeys)}</div>
+          </div>
+        `).join("")}
       </div>
     </article>
   `;
@@ -99,10 +197,25 @@ function renderCapabilityTab(company) {
 function renderNetworkTab(company) {
   return `
     <div class="overview-grid">
-      <article class="card"><h2>Customers</h2><div class="mini-list">${company.customers.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "需求端")}</div>`).join("")}</div></article>
-      <article class="card"><h2>Suppliers</h2><div class="mini-list">${company.suppliers.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "供給端")}</div>`).join("")}</div></article>
-      <article class="card"><h2>Competitors</h2><div class="mini-list">${company.competitors.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "比較")}</div>`).join("")}</div></article>
-      <article class="card"><h2>Alternative suppliers</h2><div class="mini-list">${company.alternatives.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "外溢")}</div>`).join("")}</div></article>
+      <article class="card"><h2>Customers</h2><div class="mini-list">${company.customers.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "customer")}</div>`).join("")}</div></article>
+      <article class="card"><h2>Suppliers</h2><div class="mini-list">${company.suppliers.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "supplier")}</div>`).join("")}</div></article>
+      <article class="card"><h2>Competitors</h2><div class="mini-list">${company.competitors.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "peer")}</div>`).join("")}</div></article>
+      <article class="card"><h2>Alternative suppliers</h2><div class="mini-list">${company.alternatives.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "alternative")}</div>`).join("")}</div></article>
+    </div>
+  `;
+}
+
+function swotColumn(title, items = []) {
+  return `
+    <div class="swot-card">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="mini-list">
+        ${items.map(item => `
+          <div class="mini-row">
+            <span><strong>${escapeHtml(item.label)}</strong><br><small>${escapeHtml(item.detail)}</small></span>
+          </div>
+        `).join("")}
+      </div>
     </div>
   `;
 }
@@ -110,19 +223,30 @@ function renderNetworkTab(company) {
 function renderSwotTab(company) {
   return `
     <div class="swot-grid">
-      <div class="swot-card"><h3>Strengths</h3><p class="small">${escapeHtml(company.moat)}</p></div>
-      <div class="swot-card"><h3>Weaknesses</h3><p class="small">資本密集、客戶集中、導入週期長或良率風險。</p></div>
-      <div class="swot-card"><h3>Opportunities</h3><p class="small">AI/HPC 升級、替代供應鏈、技術節點擴張。</p></div>
-      <div class="swot-card"><h3>Threats</h3><p class="small">技術替代、價格壓力、供給過剩與資格延遲。</p></div>
+      ${swotColumn("Strengths", company.swot?.strengths)}
+      ${swotColumn("Weaknesses", company.swot?.weaknesses)}
+      ${swotColumn("Opportunities", company.swot?.opportunities)}
+      ${swotColumn("Threats", company.swot?.threats)}
     </div>
   `;
 }
 
 function renderNewsTab(company) {
+  const snapshot = company.liveFeeds?.priceSnapshot || {};
   return `
     <div class="overview-grid">
-      <article class="card"><p class="eyebrow">News queue</p><h2>${escapeHtml(company.name)} 更新待辦</h2><p class="muted">此區會承接內容團隊整理的公告、法說會、技術頁與供應鏈事件。</p>${confidenceBadge("medium", "需來源")}</article>
-      <article class="card"><p class="eyebrow">Filing cards</p><h2>文件欄位</h2><div class="mini-list"><div class="mini-row"><span>年報 / 20-F / 10-K</span><span class="tag">filing</span></div><div class="mini-row"><span>法說會與技術公告</span><span class="tag">event</span></div><div class="mini-row"><span>客戶資格或產能更新</span><span class="tag">source</span></div></div></article>
+      <article class="card">
+        <p class="eyebrow">Watch queue</p>
+        <h2>${escapeHtml(company.name)} 事件追蹤</h2>
+        <p class="muted">後端接入後，此處可合併公告、IR 新聞、價格異動與 options 量能。靜態原型只顯示資料槽位與來源，不捏造新聞。</p>
+        ${confidenceBadge("medium", "watch queue")}
+      </article>
+      <article class="card">
+        <p class="eyebrow">Latest price slot</p>
+        <h2>${escapeHtml(snapshot.provider || "Provider ready")}</h2>
+        <p class="muted">${escapeHtml(snapshot.asOf || "等待後端資料接入")}</p>
+        <div class="source-row">${sourceTags(snapshot.sourceKeys)}</div>
+      </article>
     </div>
   `;
 }
@@ -132,8 +256,8 @@ function renderNotesTab(company) {
     <article class="card">
       <p class="eyebrow">Research notes</p>
       <h2>研究筆記</h2>
-      <textarea class="notes-area" placeholder="記錄 ${escapeHtml(company.name)} 的待查問題、來源連結或分析假設。"></textarea>
-      <p class="small">目前筆記只作為前端互動區塊，不會儲存到後端。</p>
+      <textarea class="notes-area" placeholder="記錄 ${escapeHtml(company.name)} 的產業曝險、價格異動、供應鏈證據與待查問題..."></textarea>
+      <p class="small">筆記目前保留在前端狀態；正式版可接使用者帳號與後端資料庫。</p>
     </article>
   `;
 }

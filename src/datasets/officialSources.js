@@ -27,6 +27,22 @@ export const officialSources = {
     label: "Nasdaq Data Link APIs",
     url: "https://www.nasdaq.com/solutions/data-link-api"
   },
+  cnbcQuotes: {
+    label: "CNBC public quote pages",
+    url: "https://www.cnbc.com/quotes/"
+  },
+  stockAnalysisQuotes: {
+    label: "StockAnalysis public quote pages",
+    url: "https://stockanalysis.com/stocks/"
+  },
+  yahooTwQuote: {
+    label: "Yahoo Taiwan public quote pages",
+    url: "https://tw.stock.yahoo.com/"
+  },
+  twseStockDay: {
+    label: "TWSE STOCK_DAY_ALL OpenAPI",
+    url: "https://openapi.twse.com.tw/#/exchangeReport/get_exchangeReport_STOCK_DAY_ALL"
+  },
   occMarketData: {
     label: "OCC volume and open interest reports",
     url: "https://www.theocc.com/market-data"
@@ -130,6 +146,42 @@ export const officialSources = {
   organoWater: {
     label: "Organo electronics ultrapure water systems",
     url: "https://www.organo.co.jp/english/business/electronic/"
+  },
+  appliedProducts: {
+    label: "Applied Materials semiconductor products",
+    url: "https://www.appliedmaterials.com/us/en/semiconductor/products.html"
+  },
+  appliedAiProducts: {
+    label: "Applied Materials next-gen chipmaking products",
+    url: "https://investor.appliedmaterials.com/news-releases/news-release-details/applied-materials-unveils-next-gen-chipmaking-products"
+  },
+  vertivAiSolutions: {
+    label: "Vertiv AI data center solutions",
+    url: "https://www.vertiv.com/en-us/solutions/ai-hub/ai-solutions/"
+  },
+  vertivCoolchip: {
+    label: "Vertiv CoolChip CDU",
+    url: "https://go.vertiv.com/CoolChip-CDU-100"
+  },
+  wiwynnAiCooling: {
+    label: "Wiwynn AI data center and cooling solutions",
+    url: "https://www.wiwynn.com/news/wiwynn-launches-state-of-the-art-ai-data-center-and-cooling-solutions-at-ocp-global-summit-2024"
+  },
+  qctAiSystems: {
+    label: "QCT NVIDIA MGX/HGX AI systems",
+    url: "https://qct.io/Press-Releases/index/PR/Server/QCT-Expands-Its-NVIDIA-MGX-and-NVIDIA-HGX-System-Offerings-at-COMPUTEX-2024/3/0"
+  },
+  accton800g: {
+    label: "Accton 800G AI/ML fabrics",
+    url: "https://www.accton.com/800g-ai-ml-fabrics/"
+  },
+  ibidenSubstrate: {
+    label: "Ibiden flip-chip package substrates",
+    url: "https://www.ibiden.co.jp/product/electronics/merchandise/fliptippkg/"
+  },
+  unimicronProducts: {
+    label: "Unimicron Japan product portfolio",
+    url: "https://www.unimicron-j.co.jp/product.html"
   }
 };
 
