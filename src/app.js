@@ -1,4 +1,4 @@
-import { companies, industries, industryOrder, technologyCatalog, technologyMenus } from "./data.js";
+import { companies, industries, technologyMenus } from "./data.js";
 import {
   buildApiConfig,
   createNote,
@@ -10,6 +10,7 @@ import {
   fetchNotes,
   fetchTechnologyAnnouncements
 } from "./api/client.js";
+import { matchingSearchItems, searchSuggestionButton } from "./components/searchSuggestions.js";
 import { displayCompany, escapeHtml, industryCompanyIds } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
 
@@ -382,28 +383,6 @@ function clearRelationshipInspector(graph) {
   }
 }
 
-function buildSearchIndex() {
-  const industryItems = industryOrder.map(id => ({
-    label: `${industries[id].name} ${industries[id].en}`,
-    meta: "產業",
-    industryId: id,
-    route: "industry"
-  }));
-  const companyItems = Object.entries(companies).map(([id, company]) => ({
-    label: `${company.name} (${company.ticker})`,
-    meta: company.roles[0],
-    companyId: id,
-    route: "company"
-  }));
-  const techItems = Object.entries(technologyCatalog).map(([id, tech]) => ({
-    label: tech.name,
-    meta: "技術",
-    techId: id,
-    route: "technology"
-  }));
-  return [...industryItems, ...companyItems, ...techItems];
-}
-
 function renderSuggestions(value) {
   const query = value.trim().toLowerCase();
   if (!query) {
@@ -411,11 +390,9 @@ function renderSuggestions(value) {
     searchSuggestions.innerHTML = "";
     return;
   }
-  const matches = buildSearchIndex()
-    .filter(item => `${item.label} ${item.meta}`.toLowerCase().includes(query))
-    .slice(0, 8);
+  const matches = matchingSearchItems(state, query);
   searchSuggestions.innerHTML = matches.length
-    ? matches.map(item => `<button class="suggestion" data-search-route="${item.route}" data-search-industry="${item.industryId || ""}" data-search-company="${item.companyId || ""}" data-search-tech="${item.techId || ""}" type="button"><span>${escapeHtml(item.label)}</span><span class="tag">${escapeHtml(item.meta)}</span></button>`).join("")
+    ? matches.map(searchSuggestionButton).join("")
     : `<div class="suggestion"><span>沒有符合的資料</span><span class="tag">Empty</span></div>`;
   searchSuggestions.classList.add("open");
 }
@@ -438,6 +415,8 @@ document.addEventListener("click", event => {
     if (suggestion.dataset.searchIndustry) setIndustry(suggestion.dataset.searchIndustry);
     if (suggestion.dataset.searchCompany) state.companyId = suggestion.dataset.searchCompany;
     if (suggestion.dataset.searchTech) state.techId = suggestion.dataset.searchTech;
+    if (suggestion.dataset.searchIndustryTab) state.industryTab = suggestion.dataset.searchIndustryTab;
+    if (suggestion.dataset.searchCompanyTab) state.companyTab = suggestion.dataset.searchCompanyTab;
     searchInput.value = "";
     searchSuggestions.classList.remove("open");
     setRoute(suggestion.dataset.searchRoute);

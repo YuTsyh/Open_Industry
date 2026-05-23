@@ -8,6 +8,7 @@ import {
   technologyStepExplainer
 } from "../src/components/technologyDetails.js";
 import { officialTechnologySources } from "../src/components/officialEvidence.js";
+import { matchingSearchItems, searchSuggestionButton } from "../src/components/searchSuggestions.js";
 import { buildLiveHeatmapRows } from "../src/domain/heatmapMetrics.js";
 import { renderRoute } from "../src/views/index.js";
 import {
@@ -248,6 +249,67 @@ assert.equal(newsPayload.items[0].title, "CoWoS capacity update", "frontend API 
 
 const technologyAnnouncementPayload = await fetchTechnologyAnnouncements({ baseUrl: apiConfig.baseUrl, technologyId: "cowos", fetchImpl });
 assert.equal(technologyAnnouncementPayload.items[0].title, "3DFabric platform update", "frontend API client should fetch technology announcements");
+
+const apiSearchMatches = matchingSearchItems({
+  ...requiredState,
+  api: {
+    enabled: true,
+    companySignals: {
+      tsmc: {
+        news: [
+          {
+            title: "CoWoS capacity update",
+            publishedAt: "2026-05-23",
+            sourceUrl: "https://example.com/news"
+          }
+        ],
+        filings: []
+      }
+    },
+    technologyAnnouncements: {
+      cowos: {
+        items: [
+          {
+            title: "3DFabric platform update",
+            summary: "Official packaging source update.",
+            sourceUrl: "https://example.com/tech",
+            provider: "TSMC 3DFabric"
+          }
+        ]
+      }
+    }
+  }
+}, "3DFabric");
+assert.ok(
+  apiSearchMatches.some(item => item.kind === "technology-announcement" && item.techId === "cowos" && item.route === "technology"),
+  "global search should suggest loaded technology announcements"
+);
+const newsSearchMatches = matchingSearchItems({
+  ...requiredState,
+  api: {
+    enabled: true,
+    companySignals: {
+      tsmc: {
+        news: [
+          {
+            title: "CoWoS capacity update",
+            publishedAt: "2026-05-23",
+            sourceUrl: "https://example.com/news"
+          }
+        ],
+        filings: []
+      }
+    }
+  }
+}, "capacity");
+assert.ok(
+  newsSearchMatches.some(item => item.kind === "news" && item.companyId === "tsmc" && item.companyTab === "news"),
+  "global search should suggest loaded company news and route to the company news tab"
+);
+assert.ok(
+  searchSuggestionButton(apiSearchMatches[0]).includes('data-search-kind="technology-announcement"'),
+  "search suggestion buttons should expose stable search item kind metadata"
+);
 
 for (const contract of ingestionProviderContracts) {
   assert.ok(contract.id, "ingestion provider contract should include id");
