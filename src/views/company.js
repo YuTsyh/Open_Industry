@@ -154,7 +154,7 @@ function renderCompanyTabs(company, activeTab, state) {
         ${normalizedTab === "capability" ? renderCapabilityTab(company) : ""}
         ${normalizedTab === "customers" ? renderNetworkTab(company) : ""}
         ${normalizedTab === "swot" ? renderSwotTab(company) : ""}
-        ${normalizedTab === "news" ? renderNewsTab(company) : ""}
+        ${normalizedTab === "news" ? renderNewsTab(company, state) : ""}
         ${normalizedTab === "notes" ? renderNotesTab(company, state) : ""}
       </div>
     </section>
@@ -232,8 +232,60 @@ function renderSwotTab(company) {
   `;
 }
 
-function renderNewsTab(company) {
+function eventCard(item, type) {
+  return `
+    <div class="timeline-step event-card">
+      <strong>${escapeHtml(item.title || `${type} event`)}</strong>
+      <span class="small">${escapeHtml(item.publishedAt || item.date || "date pending")} · ${escapeHtml(type)}</span>
+      <p class="small">${escapeHtml(item.summary || item.extractedSummary || "")}</p>
+      ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : ""}
+    </div>
+  `;
+}
+
+function renderMeetingPanel(meetings = []) {
+  return `
+    <article class="card meeting-transcripts-panel">
+      <p class="eyebrow">Meeting Transcripts</p>
+      <h2>Meeting Transcripts</h2>
+      <div class="mini-list">
+        ${meetings.length ? meetings.map(item => `
+          <div class="mini-row">
+            <span>
+              <strong>${escapeHtml(item.title || "Meeting transcript")}</strong><br>
+              <small>${escapeHtml(item.summary || "")}</small>
+              ${(item.keyPoints || []).map(point => `<br><small>${escapeHtml(point)}</small>`).join("")}
+            </span>
+            ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : `<span class="tag">provider-ready</span>`}
+          </div>
+        `).join("") : `<div class="mini-row"><span>No meeting transcript loaded yet.</span><span class="tag">provider-ready</span></div>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderNewsTab(company, state = {}) {
   const snapshot = company.liveFeeds?.priceSnapshot || {};
+  const companyId = state.companyId || "tsmc";
+  const apiLive = state.api?.companyLive?.[companyId] || {};
+  const events = [
+    ...(apiLive.latestNews || []).map(item => ({ ...item, type: "news" })),
+    ...(apiLive.latestFilings || []).map(item => ({ ...item, type: "filing" }))
+  ];
+  if (events.length || (apiLive.latestMeetings || []).length) {
+    return `
+      <div class="overview-grid">
+        <article class="card company-event-timeline">
+          <p class="eyebrow">News & Filings</p>
+          <h2>Company event timeline</h2>
+          <div class="timeline">
+            ${events.length ? events.map(item => eventCard(item, item.type)).join("") : `<div class="timeline-step"><strong>No events loaded yet</strong><span class="small">provider-ready</span></div>`}
+          </div>
+        </article>
+        ${renderMeetingPanel(apiLive.latestMeetings || [])}
+      </div>
+    `;
+  }
   return `
     <div class="overview-grid">
       <article class="card">

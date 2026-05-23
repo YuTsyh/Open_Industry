@@ -13,8 +13,11 @@ import { renderRoute } from "../src/views/index.js";
 import {
   buildApiConfig,
   createNote,
+  fetchFilings,
   fetchCompanyLive,
-  fetchNotes
+  fetchNews,
+  fetchNotes,
+  fetchTechnologyAnnouncements
 } from "../src/api/client.js";
 import {
   apiRoutes,
@@ -127,6 +130,27 @@ const fetchImpl = async (url, options = {}) => {
       json: async () => ({ note: { id: 7, title: "CoWoS follow-up", visibility: "shared" } })
     };
   }
+  if (url.includes("/api/live/filings")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [{ id: 11, title: "TSMC monthly revenue filing", sourceUrl: "https://example.com/filing" }] })
+    };
+  }
+  if (url.includes("/api/live/news")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [{ id: 12, title: "CoWoS capacity update", sourceUrl: "https://example.com/news" }] })
+    };
+  }
+  if (url.includes("/api/live/technology/cowos/announcements")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ technologyId: "cowos", items: [{ id: 13, title: "3DFabric platform update", sourceUrl: "https://example.com/tech" }] })
+    };
+  }
   return {
     ok: true,
     status: 200,
@@ -163,6 +187,15 @@ assert.ok(
   requestedApiCalls.some(call => call.options.headers?.authorization === "Bearer local-token"),
   "frontend API client should send JWT bearer token to notes endpoints"
 );
+
+const filingsPayload = await fetchFilings({ baseUrl: apiConfig.baseUrl, industryId: "advanced-packaging", fetchImpl });
+assert.equal(filingsPayload.items[0].title, "TSMC monthly revenue filing", "frontend API client should fetch filings");
+
+const newsPayload = await fetchNews({ baseUrl: apiConfig.baseUrl, industryId: "advanced-packaging", fetchImpl });
+assert.equal(newsPayload.items[0].title, "CoWoS capacity update", "frontend API client should fetch news events");
+
+const technologyAnnouncementPayload = await fetchTechnologyAnnouncements({ baseUrl: apiConfig.baseUrl, technologyId: "cowos", fetchImpl });
+assert.equal(technologyAnnouncementPayload.items[0].title, "3DFabric platform update", "frontend API client should fetch technology announcements");
 
 for (const contract of ingestionProviderContracts) {
   assert.ok(contract.id, "ingestion provider contract should include id");
@@ -350,6 +383,29 @@ assert.ok(
   "technology process details should map steps to materials, constraints, and companies"
 );
 
+const apiTechnologyHtml = renderRoute({
+  ...requiredState,
+  route: "technology",
+  api: {
+    enabled: true,
+    technologyAnnouncements: {
+      cowos: {
+        items: [
+          {
+            title: "3DFabric platform update",
+            summary: "Official packaging source update.",
+            sourceUrl: "https://example.com/tech",
+            provider: "TSMC 3DFabric"
+          }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiTechnologyHtml.includes("technology-announcements"), "technology detail should render announcements section");
+assert.ok(apiTechnologyHtml.includes("3DFabric platform update"), "technology announcements should render API items");
+assert.ok(apiTechnologyHtml.includes("https://example.com/tech"), "technology announcements should keep source links");
+
 const companyHtml = renderRoute({ ...requiredState, route: "company" });
 assert.ok(
   companyHtml.includes("live-feed-panel"),
@@ -407,6 +463,55 @@ assert.ok(apiCompanyHtml.includes("api-live-status"), "company detail should ren
 assert.ok(apiCompanyHtml.includes("TWSE delayed") && apiCompanyHtml.includes("provider-ready"), "company API status should show providers and statuses");
 assert.ok(apiCompanyHtml.includes("note-visibility") && apiCompanyHtml.includes("data-save-note"), "notes tab should expose visibility and save controls");
 assert.ok(apiCompanyHtml.includes("CoWoS follow-up"), "notes tab should render API notes");
+
+const apiCompanyNewsHtml = renderRoute({
+  ...requiredState,
+  route: "company",
+  companyTab: "news",
+  api: {
+    enabled: true,
+    companyLive: {
+      tsmc: {
+        latestNews: [
+          { title: "CoWoS capacity update", summary: "Capacity event summary.", sourceUrl: "https://example.com/news", publishedAt: "2026-05-23" }
+        ],
+        latestFilings: [
+          { title: "Monthly revenue filing", extractedSummary: "Filing summary.", sourceUrl: "https://example.com/filing", publishedAt: "2026-05-22" }
+        ],
+        latestMeetings: [
+          { title: "Technology conference transcript", summary: "Management discussed advanced packaging constraints.", sourceUrl: "https://example.com/meeting", keyPoints: ["CoWoS demand", "HBM constraints"] }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiCompanyNewsHtml.includes("company-event-timeline"), "company news tab should render API event timeline");
+assert.ok(apiCompanyNewsHtml.includes("Meeting Transcripts"), "company news tab should render meeting transcript panel");
+assert.ok(apiCompanyNewsHtml.includes("CoWoS capacity update") && apiCompanyNewsHtml.includes("Monthly revenue filing"), "company news tab should show news and filings");
+
+const apiIndustryNewsHtml = renderRoute({
+  ...requiredState,
+  route: "industry",
+  industryTab: "news",
+  api: {
+    enabled: true,
+    industryEvents: {
+      "advanced-packaging": {
+        news: [
+          { title: "Advanced packaging supply update", summary: "Industry event summary.", sourceUrl: "https://example.com/industry-news", publishedAt: "2026-05-23" }
+        ],
+        filings: [
+          { title: "Supplier capacity filing", summary: "Filing card summary.", sourceUrl: "https://example.com/industry-filing", publishedAt: "2026-05-22" }
+        ],
+        providerStatuses: [
+          { feedType: "news", provider: "MOPS", status: "provider-ready" }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiIndustryNewsHtml.includes("industry-event-card"), "industry news tab should render API event cards");
+assert.ok(apiIndustryNewsHtml.includes("Advanced packaging supply update") && apiIndustryNewsHtml.includes("Supplier capacity filing"), "industry news tab should render news and filings cards");
 
 const explorerHtml = renderRoute({ ...requiredState, route: "explorer" });
 assert.ok(

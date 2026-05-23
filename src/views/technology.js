@@ -16,6 +16,38 @@ function techFor(id) {
   return technologyCatalog[id] || technologyCatalog.cowos;
 }
 
+function renderTechnologyAnnouncements(state) {
+  const payload = state.api?.technologyAnnouncements?.[state.techId] || {};
+  const items = payload.items || [];
+  return `
+    <section class="panel technology-announcements">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Announcements</p>
+          <h2>Technology announcements</h2>
+          <p class="small">Source-backed technology releases, research updates and official product notes. Provider-ready means ingestion is configured but no licensed item is loaded yet.</p>
+        </div>
+        <span class="tag">${items.length ? "source-backed" : "provider-ready"}</span>
+      </div>
+      <div class="event-card-grid">
+        ${items.length ? items.map(item => `
+          <article class="event-card">
+            <p class="eyebrow">${escapeHtml(item.provider || "official source")}</p>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p class="small">${escapeHtml(item.summary || "")}</p>
+            ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(item.sourceUrl)}</a>` : ""}
+          </article>
+        `).join("") : `
+          <article class="event-card is-empty">
+            <h3>No technology announcements loaded</h3>
+            <p class="small">Connect the announcements endpoint or run ingestion once licensed sources are configured.</p>
+          </article>
+        `}
+      </div>
+    </section>
+  `;
+}
+
 export function renderTechnology(state) {
   const techIds = technologyMenus[state.industryId] || technologyMenus["advanced-packaging"];
   const tech = selectedTechnology(state);
@@ -46,6 +78,7 @@ export function renderTechnology(state) {
       ${technologyProcessFlow(tech)}
       ${technologyStepExplainer(tech)}
       ${officialTechnologySources(state.techId)}
+      ${renderTechnologyAnnouncements(state)}
       ${liveDataReadinessPanel()}
 
       <div class="overview-grid">

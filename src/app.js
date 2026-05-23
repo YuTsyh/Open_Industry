@@ -1,5 +1,13 @@
 import { companies, industries, industryOrder, technologyCatalog, technologyMenus } from "./data.js";
-import { buildApiConfig, createNote, fetchCompanyLive, fetchNotes } from "./api/client.js";
+import {
+  buildApiConfig,
+  createNote,
+  fetchCompanyLive,
+  fetchFilings,
+  fetchNews,
+  fetchNotes,
+  fetchTechnologyAnnouncements
+} from "./api/client.js";
 import { displayCompany, escapeHtml } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
 
@@ -30,6 +38,8 @@ const state = {
   api: {
     ...buildApiConfig(),
     companyLive: {},
+    industryEvents: {},
+    technologyAnnouncements: {},
     notes: {},
     pending: {}
   }
@@ -85,27 +95,40 @@ function shouldRenderApiRefresh(companyId) {
   return state.route === "company" && state.companyId === companyId;
 }
 
+function shouldFetchCompanyNotes(companyId) {
+  return state.route === "company" && state.companyId === companyId && state.companyTab === "notes";
+}
+
+function isTerminalNotesState(notesState) {
+  return ["ready", "error", "auth-required"].includes(notesState?.status);
+}
+
 async function refreshCompanyApi(companyId) {
   if (!state.api.enabled || !state.api.baseUrl || state.api.pending[companyId]) return;
-  if (state.api.companyLive[companyId] && (!state.api.token || state.api.notes[companyId]?.status === "ready")) return;
+  const needsLive = !state.api.companyLive[companyId];
+  const shouldLoadNotes = shouldFetchCompanyNotes(companyId);
+  const needsNotes = shouldLoadNotes && !isTerminalNotesState(state.api.notes[companyId]);
+  if (!needsLive && !needsNotes) return;
 
   state.api.pending[companyId] = true;
-  if (state.api.token && !state.api.notes[companyId]) {
+  if (needsNotes && state.api.token && !state.api.notes[companyId]) {
     state.api.notes[companyId] = { status: "loading", items: [] };
   }
 
-  try {
-    state.api.companyLive[companyId] = await fetchCompanyLive({
-      baseUrl: state.api.baseUrl,
-      companyId
-    });
-  } catch (error) {
-    state.api.companyLive[companyId] = {
-      feedStatuses: [{ feedType: "api", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
-    };
+  if (needsLive) {
+    try {
+      state.api.companyLive[companyId] = await fetchCompanyLive({
+        baseUrl: state.api.baseUrl,
+        companyId
+      });
+    } catch (error) {
+      state.api.companyLive[companyId] = {
+        feedStatuses: [{ feedType: "api", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+      };
+    }
   }
 
-  if (state.api.token) {
+  if (needsNotes && state.api.token) {
     try {
       const notes = await fetchNotes({
         baseUrl: state.api.baseUrl,
@@ -117,7 +140,7 @@ async function refreshCompanyApi(companyId) {
     } catch (error) {
       state.api.notes[companyId] = { status: "error", error: error.message, items: [] };
     }
-  } else {
+  } else if (needsNotes) {
     state.api.notes[companyId] = { status: "auth-required", items: [] };
   }
 
@@ -125,8 +148,56 @@ async function refreshCompanyApi(companyId) {
   if (shouldRenderApiRefresh(companyId)) render();
 }
 
+async function refreshIndustryEvents(industryId) {
+  const key = `industry:${industryId}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.industryEvents[industryId]) return;
+
+  state.api.pending[key] = true;
+  try {
+    const [news, filings] = await Promise.all([
+      fetchNews({ baseUrl: state.api.baseUrl, industryId }),
+      fetchFilings({ baseUrl: state.api.baseUrl, industryId })
+    ]);
+    state.api.industryEvents[industryId] = {
+      news: news.items || [],
+      filings: filings.items || [],
+      providerStatuses: [...(news.providerStatuses || []), ...(filings.providerStatuses || [])]
+    };
+  } catch (error) {
+    state.api.industryEvents[industryId] = {
+      news: [],
+      filings: [],
+      providerStatuses: [{ feedType: "industry-events", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[key];
+  render();
+}
+
+async function refreshTechnologyAnnouncements(technologyId) {
+  const key = `technology:${technologyId}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.technologyAnnouncements[technologyId]) return;
+
+  state.api.pending[key] = true;
+  try {
+    state.api.technologyAnnouncements[technologyId] = await fetchTechnologyAnnouncements({
+      baseUrl: state.api.baseUrl,
+      technologyId
+    });
+  } catch (error) {
+    state.api.technologyAnnouncements[technologyId] = {
+      items: [],
+      providerStatuses: [{ feedType: "technology_announcements", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[key];
+  render();
+}
+
 function refreshApiForRoute() {
   if (state.route === "company") refreshCompanyApi(state.companyId || "tsmc");
+  if (state.route === "industry" && state.industryTab === "news") refreshIndustryEvents(state.industryId);
+  if (state.route === "technology") refreshTechnologyAnnouncements(state.techId);
 }
 
 async function saveCompanyNote(button) {

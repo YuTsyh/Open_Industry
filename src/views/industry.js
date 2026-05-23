@@ -40,7 +40,7 @@ export function renderIndustry(state, industry) {
       ${tab === "landscape" ? renderIndustryLandscape(state, industry) : ""}
       ${tab === "bottlenecks" ? renderBottlenecks(state, industry) : ""}
       ${tab === "technology" ? renderIndustryTechnology(state, industry) : ""}
-      ${tab === "news" ? renderNews(industry) : ""}
+      ${tab === "news" ? renderNews(state, industry) : ""}
     </section>
   `;
 }
@@ -153,9 +153,49 @@ function renderIndustryTechnology(state, industry) {
   `;
 }
 
-function renderNews(industry) {
+function industryEventCard(item, type) {
+  return `
+    <article class="card industry-event-card">
+      <p class="eyebrow">${escapeHtml(type)}</p>
+      <h2>${escapeHtml(item.title || `${type} item`)}</h2>
+      <p class="small">${escapeHtml(item.publishedAt || item.date || "date pending")}</p>
+      <p class="muted">${escapeHtml(item.summary || item.extractedSummary || "")}</p>
+      ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : ""}
+    </article>
+  `;
+}
+
+function renderApiIndustryEvents(payload = {}) {
+  const news = payload.news || [];
+  const filings = payload.filings || [];
+  const statuses = payload.providerStatuses || [];
+  if (!news.length && !filings.length && !statuses.length) return "";
+
+  return `
+    <section class="panel industry-events-panel">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">API events</p>
+          <h2>News & filings from API</h2>
+        </div>
+        <span class="tag">${news.length + filings.length || "provider-ready"}</span>
+      </div>
+      <div class="news-grid overview-grid">
+        ${news.map(item => industryEventCard(item, "news")).join("")}
+        ${filings.map(item => industryEventCard(item, "filing")).join("")}
+      </div>
+      <div class="source-row">
+        ${statuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "provider")} · ${escapeHtml(item.status || "provider-ready")}</span>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderNews(state, industry) {
+  const events = state.api?.industryEvents?.[state.industryId] || {};
   return `
     <section class="tab-panel active">
+      ${renderApiIndustryEvents(events)}
       <div class="news-grid overview-grid">
         <article class="card"><p class="eyebrow">News cards</p><h2>產業更新摘要</h2><p class="muted">此區用於匯入內容團隊整理的新聞、公告與產業事件，不產生投資建議。</p>${confidenceBadge("medium", "需來源")}</article>
         <article class="card"><p class="eyebrow">Official filings</p><h2>官方文件卡</h2><p class="muted">建議收錄年報、法說會、技術公告、產能說明與客戶集中風險欄位。</p>${confidenceBadge("source", "可溯源")}</article>

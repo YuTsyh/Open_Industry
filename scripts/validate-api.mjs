@@ -83,6 +83,27 @@ try {
   }
 
   {
+    const { response, body } = await request(baseUrl, "/api/live/filings?companyId=tsmc");
+    assert.equal(response.status, 200);
+    assert.ok(body.items.length >= 1, "filings endpoint should return source-backed filing cards");
+    assert.ok(body.items[0].title && body.items[0].sourceUrl, "filing cards should include title and source URL");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/news?companyId=tsmc");
+    assert.equal(response.status, 200);
+    assert.ok(body.items.length >= 1, "news endpoint should return source-backed event cards");
+    assert.ok(body.items[0].title && body.items[0].sourceUrl, "news cards should include title and source URL");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/company/tsmc/meetings");
+    assert.equal(response.status, 200);
+    assert.ok(body.items.length >= 1, "meetings endpoint should return transcript panel items");
+    assert.ok(body.items[0].summary && body.items[0].sourceUrl, "meeting items should include summary and source URL");
+  }
+
+  {
     const { response } = await request(baseUrl, "/api/notes?entityType=company&entityId=tsmc");
     assert.equal(response.status, 401, "notes list should require JWT auth");
   }

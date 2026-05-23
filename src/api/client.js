@@ -52,6 +52,47 @@ export async function fetchCompanyLive({ baseUrl, companyId, fetchImpl = globalT
   return readJson(response);
 }
 
+export async function fetchFilings({
+  baseUrl,
+  companyId,
+  industryId,
+  limit,
+  fetchImpl = globalThis.fetch
+}) {
+  const params = new URLSearchParams();
+  if (companyId) params.set("companyId", companyId);
+  if (industryId) params.set("industryId", industryId);
+  if (limit) params.set("limit", String(limit));
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/live/filings?${params}`);
+  return readJson(response);
+}
+
+export async function fetchNews({
+  baseUrl,
+  companyId,
+  industryId,
+  technologyId,
+  limit,
+  fetchImpl = globalThis.fetch
+}) {
+  const params = new URLSearchParams();
+  if (companyId) params.set("companyId", companyId);
+  if (industryId) params.set("industryId", industryId);
+  if (technologyId) params.set("technologyId", technologyId);
+  if (limit) params.set("limit", String(limit));
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/live/news?${params}`);
+  return readJson(response);
+}
+
+export async function fetchTechnologyAnnouncements({
+  baseUrl,
+  technologyId,
+  fetchImpl = globalThis.fetch
+}) {
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/live/technology/${encodeURIComponent(technologyId)}/announcements`);
+  return readJson(response);
+}
+
 export async function fetchNotes({
   baseUrl,
   entityType,

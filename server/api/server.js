@@ -234,6 +234,68 @@ function companyTechnologyAnnouncements(companyId) {
   return relevantTechnologyIds.flatMap(id => technologyAnnouncementItems(id, { companyId })).slice(0, 6);
 }
 
+function firstSource(company, preferredKeys = []) {
+  const key = [...preferredKeys, ...(company?.sources || [])].find(sourceKey => officialSources[sourceKey]);
+  return key ? { key, source: officialSources[key] } : { key: "", source: null };
+}
+
+function filingItems({ companyId, industryId } = {}) {
+  const company = companyId ? companies[companyId] : null;
+  const sourceInfo = firstSource(company, ["mops", "secEdgar", "jpxListedCompanySearch"]);
+  const titleName = company?.name || industries[industryId]?.name || "Industry";
+  return [
+    {
+      id: `${companyId || industryId || "global"}-filing-1`,
+      companyId: companyId || null,
+      filingType: "provider-ready",
+      title: `${titleName} filing watch item`,
+      publishedAt: null,
+      sourceUrl: sourceInfo.source?.url || "",
+      provider: sourceInfo.source?.label || "official filing provider",
+      extractedSummary: "Provider-ready filing card. Connect MOPS, JPX, SEC EDGAR, or a licensed vendor to replace this source-backed placeholder."
+    }
+  ];
+}
+
+function newsItems({ companyId, industryId, technologyId } = {}) {
+  const company = companyId ? companies[companyId] : null;
+  const sourceInfo = firstSource(company, ["mops", "secEdgar", "tsmc3dFabric"]);
+  const titleName = company?.name || industries[industryId]?.name || technologyCatalog[technologyId]?.name || "Research";
+  return [
+    {
+      id: `${companyId || industryId || technologyId || "global"}-news-1`,
+      title: `${titleName} news watch item`,
+      publishedAt: null,
+      sourceUrl: sourceInfo.source?.url || "",
+      sourceType: "provider-ready",
+      provider: sourceInfo.source?.label || "official news provider",
+      summary: "Provider-ready news card. Licensed news ingestion can replace this placeholder while preserving source URL and linked entity ids.",
+      linkedCompanyIds: companyId ? [companyId] : [],
+      linkedIndustryIds: industryId ? [industryId] : [],
+      linkedTechnologyIds: technologyId ? [technologyId] : []
+    }
+  ];
+}
+
+function meetingItems(companyId) {
+  const company = companies[companyId];
+  const sourceInfo = firstSource(company, ["mops", "secEdgar"]);
+  return [
+    {
+      id: `${companyId}-meeting-1`,
+      companyId,
+      meetingType: "technology_conference",
+      title: `${company?.name || companyId} meeting transcript watch item`,
+      heldAt: null,
+      sourceUrl: sourceInfo.source?.url || "",
+      transcriptUrl: "",
+      summary: "Provider-ready transcript panel. Connect earnings calls, investor days, or licensed transcript sources to populate key points.",
+      keyPoints: ["Track capacity commentary", "Track technology qualification limits"],
+      sourceIds: sourceInfo.key ? [sourceInfo.key] : []
+    }
+  ];
+}
+
 function requireAuth(request, jwtSecret) {
   const header = request.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
@@ -373,7 +435,7 @@ async function handleRequest(request, response, options) {
     if (!companies[companyId]) return routeError(response, 404, "company not found");
     return sendJson(response, 200, {
       companyId,
-      items: [],
+      items: meetingItems(companyId),
       providerStatuses: companyFeedStatuses(companyId).filter(item => item.feedType === "meetings")
     });
   }
@@ -388,11 +450,11 @@ async function handleRequest(request, response, options) {
       company,
       priceSnapshot: companies[companyId].liveFeeds?.priceSnapshot || null,
       feedStatuses,
-      latestFilings: [],
-      latestNews: [],
+      latestFilings: filingItems({ companyId }),
+      latestNews: newsItems({ companyId }),
       latestOptions: [],
       latestTechnologyAnnouncements: companyTechnologyAnnouncements(companyId),
-      latestMeetings: []
+      latestMeetings: meetingItems(companyId)
     });
   }
 
@@ -419,8 +481,9 @@ async function handleRequest(request, response, options) {
 
   if (request.method === "GET" && url.pathname === "/api/live/filings") {
     const companyId = url.searchParams.get("companyId");
+    const industryId = url.searchParams.get("industryId");
     return sendJson(response, 200, {
-      items: [],
+      items: filingItems({ companyId, industryId }),
       providerStatuses: companyId && companies[companyId]
         ? companyFeedStatuses(companyId).filter(item => item.feedType === "filings")
         : [providerStatus({ feedType: "filings", provider: "filings provider slot", status: "provider-ready" })]
@@ -429,8 +492,10 @@ async function handleRequest(request, response, options) {
 
   if (request.method === "GET" && url.pathname === "/api/live/news") {
     const companyId = url.searchParams.get("companyId");
+    const industryId = url.searchParams.get("industryId");
+    const technologyId = url.searchParams.get("technologyId");
     return sendJson(response, 200, {
-      items: [],
+      items: newsItems({ companyId, industryId, technologyId }),
       providerStatuses: companyId && companies[companyId]
         ? companyFeedStatuses(companyId).filter(item => item.feedType === "news")
         : [providerStatus({ feedType: "news", provider: "news provider slot", status: "provider-ready" })]
