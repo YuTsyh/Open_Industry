@@ -160,6 +160,7 @@ create table news_events (
 
 create table option_chains (
   market text not null default 'US',
+  company_id text references companies(id),
   underlying_ticker text not null,
   occ_symbol text not null,
   expiration date not null,
@@ -173,6 +174,93 @@ create table option_chains (
   primary key (occ_symbol, provider, captured_at)
 );
 
+create table technology_announcements (
+  id bigserial primary key,
+  title text not null,
+  summary text not null default '',
+  source_id text references official_sources(id),
+  source_url text not null,
+  provider text not null,
+  confidence text not null default 'medium',
+  published_at timestamptz,
+  source_timestamp timestamptz,
+  captured_at timestamptz not null default now(),
+  linked_company_ids text[] not null default '{}',
+  linked_industry_ids text[] not null default '{}',
+  linked_technology_ids text[] not null default '{}'
+);
+
+create table meetings (
+  id bigserial primary key,
+  company_id text references companies(id),
+  meeting_type text not null check (meeting_type in ('earnings_call', 'technology_conference', 'investor_day', 'supplier_briefing', 'other')),
+  title text not null,
+  held_at timestamptz,
+  source_url text not null,
+  transcript_url text,
+  summary text not null default '',
+  key_points jsonb not null default '[]',
+  linked_company_ids text[] not null default '{}',
+  linked_industry_ids text[] not null default '{}',
+  linked_technology_ids text[] not null default '{}',
+  source_ids text[] not null default '{}',
+  captured_at timestamptz not null default now()
+);
+
+create table users (
+  id text primary key,
+  email text not null unique,
+  display_name text not null default '',
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz
+);
+
+create table notes (
+  id bigserial primary key,
+  owner_user_id text not null references users(id),
+  entity_type text not null check (entity_type in ('company', 'industry', 'technology')),
+  entity_id text not null,
+  title text not null default '',
+  body_markdown text not null default '',
+  visibility text not null default 'private' check (visibility in ('private', 'shared')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table note_collaborators (
+  note_id bigint not null references notes(id) on delete cascade,
+  user_id text not null references users(id),
+  role text not null default 'reader' check (role in ('reader', 'editor')),
+  created_at timestamptz not null default now(),
+  primary key (note_id, user_id)
+);
+
+create table feed_statuses (
+  feed_type text not null check (feed_type in ('price', 'filings', 'news', 'options', 'technology_announcements', 'meetings')),
+  provider text not null,
+  market text,
+  entity_type text not null default 'global' check (entity_type in ('global', 'company', 'industry', 'technology')),
+  entity_id text not null default '',
+  status text not null check (status in ('delayed', 'licensed', 'not-available', 'provider-ready', 'stale', 'error')),
+  latest_source_timestamp timestamptz,
+  latest_success_at timestamptz,
+  error_message text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (feed_type, provider, entity_type, entity_id)
+);
+
+create table ingestion_runs (
+  id bigserial primary key,
+  provider text not null,
+  feed_type text not null,
+  status text not null check (status in ('started', 'succeeded', 'failed', 'skipped')),
+  started_at timestamptz not null default now(),
+  finished_at timestamptz,
+  records_seen integer not null default 0,
+  records_written integer not null default 0,
+  error_message text not null default ''
+);
+
 create index relationships_source_idx on relationships(source_company_id);
 create index relationships_target_idx on relationships(target_company_id);
 create index company_exposures_idx on company_industry_exposures(company_id, exposure_score desc);
@@ -182,3 +270,11 @@ create index news_company_ids_idx on news_events using gin(linked_company_ids);
 create index news_industry_ids_idx on news_events using gin(linked_industry_ids);
 create index prices_ticker_date_idx on daily_prices(market, ticker, trade_date desc);
 create index price_snapshots_ticker_idx on price_snapshots(market, ticker, captured_at desc);
+create index technology_announcements_company_idx on technology_announcements using gin(linked_company_ids);
+create index technology_announcements_industry_idx on technology_announcements using gin(linked_industry_ids);
+create index technology_announcements_technology_idx on technology_announcements using gin(linked_technology_ids);
+create index meetings_company_idx on meetings(company_id, held_at desc);
+create index meetings_technology_idx on meetings using gin(linked_technology_ids);
+create index notes_entity_idx on notes(entity_type, entity_id, updated_at desc);
+create index feed_statuses_entity_idx on feed_statuses(entity_type, entity_id, feed_type);
+create index ingestion_runs_provider_idx on ingestion_runs(provider, feed_type, started_at desc);

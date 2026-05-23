@@ -12,6 +12,7 @@ Recommended repo shape:
 
 - `src/`: static prototype UI and configuration fixtures
 - `server/schema.sql`: normalized database shape for production data
+- `server/api/contracts.js`: REST contract consumed by future UI data adapters
 - `server/ingestion/`: future provider adapters for TWSE, MOPS, JPX, SEC, OCC, Cboe, and licensed vendors
 - `server/api/`: future API endpoints consumed by the same UI slots currently rendered from `src/datasets/liveFeeds.js`
 
@@ -20,8 +21,16 @@ Recommended first API slice:
 - `GET /api/live/company/:companyId`
 - `GET /api/live/company/:companyId/price`
 - `GET /api/live/heatmap?period=latest&universe=cap`
+- `GET /api/live/filings?companyId=tsmc`
 - `GET /api/live/news?companyId=tsmc`
 - `GET /api/live/options?companyId=nvidia`
+- `GET /api/live/technology/:technologyId/announcements`
+- `GET /api/live/company/:companyId/meetings`
+- `GET /api/notes?entityType=company&entityId=tsmc`
+
+The contract intentionally requires each live response to include provider/status metadata. Price and options endpoints must return `delayed`, `licensed`, `not-available`, `provider-ready`, `stale`, or `error` instead of silently mixing real, delayed, and placeholder data.
+
+The first database expansion adds `technology_announcements`, `meetings`, `users`, `notes`, `note_collaborators`, `feed_statuses`, and `ingestion_runs`. These tables keep the frontend goal moving without committing API keys, exchange credentials, or browser-side market data calls.
 
 Why this belongs in the same repo at first:
 

@@ -494,7 +494,14 @@ Recommended production architecture:
   - `filings`
   - `news_events`
   - `option_chains`
-  - `option_open_interest`
+  - `technology_announcements`
+  - `meetings`
+  - `users`
+  - `notes`
+  - `note_collaborators`
+  - `feed_statuses`
+  - `ingestion_runs`
+  - `option_open_interest` can be added later if a licensed provider exposes it separately from `option_chains`
 - Use ingestion jobs for licensed or official data:
   - Taiwan: TWSE OpenAPI for market datasets, MOPS for filings/events.
   - Japan: JPX J-Quants and JPX delayed API where licensed.

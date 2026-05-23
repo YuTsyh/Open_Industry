@@ -10,6 +10,13 @@ import {
 import { officialTechnologySources } from "../src/components/officialEvidence.js";
 import { buildLiveHeatmapRows } from "../src/domain/heatmapMetrics.js";
 import { renderRoute } from "../src/views/index.js";
+import {
+  apiRoutes,
+  liveFeedStatuses,
+  requiredApiTables,
+  routeKey
+} from "../server/api/contracts.js";
+import { ingestionProviderContracts } from "../server/ingestion/providerContracts.js";
 
 const requiredState = {
   route: "overview",
@@ -32,9 +39,64 @@ const requiredState = {
 
 const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const appCss = await readFile(new URL("../styles/app.css", import.meta.url), "utf8");
+const schemaSql = await readFile(new URL("../server/schema.sql", import.meta.url), "utf8");
 
 function countMatches(text, pattern) {
   return (text.match(pattern) || []).length;
+}
+
+const schemaTables = new Set(
+  [...schemaSql.matchAll(/create table\s+([a-z_]+)/gi)].map(match => match[1])
+);
+
+for (const table of requiredApiTables) {
+  assert.ok(schemaTables.has(table), `server schema should define ${table}`);
+}
+
+const routeKeys = new Set(apiRoutes.map(routeKey));
+for (const key of [
+  "GET /api/live/company/:companyId",
+  "GET /api/live/company/:companyId/price",
+  "GET /api/live/heatmap",
+  "GET /api/live/filings",
+  "GET /api/live/news",
+  "GET /api/live/options",
+  "GET /api/live/technology/:technologyId/announcements",
+  "GET /api/live/company/:companyId/meetings",
+  "GET /api/notes",
+  "POST /api/notes",
+  "PATCH /api/notes/:noteId"
+]) {
+  assert.ok(routeKeys.has(key), `API contract should expose ${key}`);
+}
+
+for (const route of apiRoutes) {
+  assert.ok(route.dataPolicy, `${route.id} should declare a data/license policy`);
+  assert.ok(route.responseFields?.length, `${route.id} should declare response fields`);
+  for (const table of route.backingTables || []) {
+    assert.ok(schemaTables.has(table), `${route.id} backing table ${table} should exist in schema`);
+  }
+  if (route.path.startsWith("/api/notes")) {
+    assert.equal(route.auth, "jwt", `${route.id} should require JWT auth`);
+  }
+}
+
+assert.ok(liveFeedStatuses.includes("delayed"), "live feed statuses should include delayed");
+assert.ok(liveFeedStatuses.includes("not-available"), "live feed statuses should include not-available");
+assert.ok(liveFeedStatuses.includes("provider-ready"), "live feed statuses should include provider-ready");
+
+for (const contract of ingestionProviderContracts) {
+  assert.ok(contract.id, "ingestion provider contract should include id");
+  assert.ok(contract.feedType, `${contract.id} should include feed type`);
+  assert.ok(contract.licenseBoundary, `${contract.id} should declare licensing boundary`);
+  assert.ok(contract.outputTables.includes("feed_statuses"), `${contract.id} should update feed status`);
+  assert.ok(contract.outputTables.includes("ingestion_runs"), `${contract.id} should record ingestion runs`);
+  for (const table of contract.outputTables) {
+    assert.ok(schemaTables.has(table), `${contract.id} output table ${table} should exist in schema`);
+  }
+  for (const sourceKey of contract.sourceKeys || []) {
+    assert.ok(officialSources[sourceKey], `${contract.id} source key ${sourceKey} should exist`);
+  }
 }
 
 const companyRegistry = await import("../src/datasets/companies/index.js");
