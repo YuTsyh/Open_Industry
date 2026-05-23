@@ -2,3 +2,4 @@
 .playwright-mcp/
 .tmp-*
 gitstore/
+server/data/*.local.json

@@ -32,6 +32,16 @@ The contract intentionally requires each live response to include provider/statu
 
 The first database expansion adds `technology_announcements`, `meetings`, `users`, `notes`, `note_collaborators`, `feed_statuses`, and `ingestion_runs`. These tables keep the frontend goal moving without committing API keys, exchange credentials, or browser-side market data calls.
 
+Current executable API scaffold:
+
+- `node server/api/server.js`
+- `PORT=8787` by default
+- `INDUSTRYTOPO_JWT_SECRET` enables HS256 JWT verification for notes endpoints
+- `INDUSTRYTOPO_NOTES_FILE` overrides the local notes JSON store
+- `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
+
+The scaffold intentionally returns empty arrays plus `provider-ready` or `not-available` status for filings, news, options, and meetings until licensed ingestion is connected. This keeps the UI contract truthful instead of showing unlicensed or fabricated data.
+
 Why this belongs in the same repo at first:
 
 - The UI contract and data contract can evolve together.
