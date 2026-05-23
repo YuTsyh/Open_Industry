@@ -125,6 +125,15 @@ export const apiRoutes = [
     dataPolicy: "Meeting transcript panels must show source URL or transcript URL and clearly separate summary from key points."
   },
   {
+    id: "ingestion-status",
+    method: "GET",
+    path: "/api/ingestion/status",
+    auth: "optional",
+    backingTables: ["feed_statuses", "ingestion_runs"],
+    responseFields: ["summary", "alerts", "feedStatuses", "recentRuns"],
+    dataPolicy: "Expose provider readiness, skipped licensed feeds, and recent run health without leaking API keys or fetching data from the browser."
+  },
+  {
     id: "notes-list",
     method: "GET",
     path: "/api/notes",

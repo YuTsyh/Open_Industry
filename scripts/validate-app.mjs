@@ -69,6 +69,7 @@ for (const key of [
   "GET /api/live/options",
   "GET /api/live/technology/:technologyId/announcements",
   "GET /api/live/company/:companyId/meetings",
+  "GET /api/ingestion/status",
   "GET /api/notes",
   "POST /api/notes",
   "PATCH /api/notes/:noteId"

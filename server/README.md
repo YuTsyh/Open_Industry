@@ -38,7 +38,10 @@ Current executable API scaffold:
 - `PORT=8787` by default
 - `INDUSTRYTOPO_JWT_SECRET` enables HS256 JWT verification for notes endpoints
 - `INDUSTRYTOPO_NOTES_FILE` overrides the local notes JSON store
+- `INDUSTRYTOPO_INGESTION_STATE_FILE` overrides the local ingestion status JSON store
 - `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
+- `node server/ingestion/runner.js` performs a no-network dry run over provider contracts and writes `feed_statuses` / `ingestion_runs` shaped status to the local ingestion store
+- `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
 - Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`
 
 The scaffold intentionally returns empty arrays plus `provider-ready` or `not-available` status for filings, news, options, and meetings until licensed ingestion is connected. This keeps the UI contract truthful instead of showing unlicensed or fabricated data.

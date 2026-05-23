@@ -11,6 +11,11 @@ import {
   technologyCatalog
 } from "../../src/data.js";
 import { buildLiveHeatmapRows } from "../../src/domain/heatmapMetrics.js";
+import {
+  DEFAULT_INGESTION_STATE_FILE,
+  loadIngestionState,
+  summarizeIngestionState
+} from "../ingestion/runner.js";
 
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
 const NOTE_ENTITY_TYPES = new Set(["company", "industry", "technology"]);
@@ -332,6 +337,17 @@ async function handleRequest(request, response, options) {
     return handleNotes(request, response, url, options.notesFile, options.jwtSecret);
   }
 
+  if (request.method === "GET" && url.pathname === "/api/ingestion/status") {
+    const state = await loadIngestionState(options.ingestionStateFile);
+    const summary = summarizeIngestionState(state);
+    return sendJson(response, 200, {
+      summary,
+      alerts: summary.alerts,
+      feedStatuses: state.feedStatuses,
+      recentRuns: state.ingestionRuns.slice(0, 20)
+    });
+  }
+
   const companyPriceMatch = url.pathname.match(/^\/api\/live\/company\/([^/]+)\/price$/);
   if (request.method === "GET" && companyPriceMatch) {
     const companyId = companyPriceMatch[1];
@@ -465,6 +481,7 @@ async function handleRequest(request, response, options) {
 export function createApiServer(options = {}) {
   const resolvedOptions = {
     notesFile: options.notesFile || process.env.INDUSTRYTOPO_NOTES_FILE || DEFAULT_NOTES_FILE,
+    ingestionStateFile: options.ingestionStateFile || process.env.INDUSTRYTOPO_INGESTION_STATE_FILE || DEFAULT_INGESTION_STATE_FILE,
     jwtSecret: options.jwtSecret || process.env.INDUSTRYTOPO_JWT_SECRET || ""
   };
 
