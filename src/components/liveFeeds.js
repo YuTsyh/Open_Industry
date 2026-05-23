@@ -29,6 +29,32 @@ function priceSnapshotCard(snapshot = {}) {
   `;
 }
 
+function apiLiveStatusPanel(apiLive = {}) {
+  if (!apiLive) return "";
+  const statuses = apiLive.feedStatuses || [];
+  if (!statuses.length) return "";
+
+  return `
+    <article class="live-feed-card api-live-status">
+      <div class="live-feed-title">
+        <strong>API provider status</strong>
+        <span class="tag">REST</span>
+      </div>
+      <div class="mini-list">
+        ${statuses.map(item => `
+          <div class="mini-row">
+            <span>
+              <strong>${escapeHtml(item.feedType || "feed")}</strong><br>
+              <small>${escapeHtml(item.provider || "provider slot")}</small>
+            </span>
+            <span class="tag" title="${escapeHtml(item.latestSourceTimestamp || "No source timestamp yet")}">${escapeHtml(item.status || "provider-ready")}</span>
+          </div>
+        `).join("")}
+      </div>
+    </article>
+  `;
+}
+
 export function liveDataReadinessPanel() {
   return `
     <section class="panel live-data-readiness">
@@ -58,7 +84,7 @@ export function liveDataReadinessPanel() {
   `;
 }
 
-export function companyLiveFeedPanel(company) {
+export function companyLiveFeedPanel(company, apiLive = null) {
   const feeds = Object.entries(company.liveFeeds || {}).filter(([type]) => type !== "priceSnapshot");
   if (!feeds.length && !company.liveFeeds?.priceSnapshot) return "";
 
@@ -73,6 +99,7 @@ export function companyLiveFeedPanel(company) {
         ${confidenceBadge(company.confidence)}
       </div>
       <div class="live-feed-grid">
+        ${apiLiveStatusPanel(apiLive)}
         ${priceSnapshotCard(company.liveFeeds?.priceSnapshot)}
         ${feeds.map(([type, feed]) => `
           <article class="live-feed-card ${feed.status === "not-applicable" ? "is-muted" : ""}">

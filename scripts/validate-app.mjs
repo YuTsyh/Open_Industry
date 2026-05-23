@@ -11,6 +11,12 @@ import { officialTechnologySources } from "../src/components/officialEvidence.js
 import { buildLiveHeatmapRows } from "../src/domain/heatmapMetrics.js";
 import { renderRoute } from "../src/views/index.js";
 import {
+  buildApiConfig,
+  createNote,
+  fetchCompanyLive,
+  fetchNotes
+} from "../src/api/client.js";
+import {
   apiRoutes,
   liveFeedStatuses,
   requiredApiTables,
@@ -84,6 +90,78 @@ for (const route of apiRoutes) {
 assert.ok(liveFeedStatuses.includes("delayed"), "live feed statuses should include delayed");
 assert.ok(liveFeedStatuses.includes("not-available"), "live feed statuses should include not-available");
 assert.ok(liveFeedStatuses.includes("provider-ready"), "live feed statuses should include provider-ready");
+
+const apiConfig = buildApiConfig({
+  locationSearch: "?api=http://127.0.0.1:8787",
+  storage: {
+    getItem(key) {
+      return key === "industrytopo.jwt" ? "local-token" : "";
+    }
+  }
+});
+assert.equal(apiConfig.enabled, true, "frontend API config should enable API mode from query string");
+assert.equal(apiConfig.baseUrl, "http://127.0.0.1:8787", "frontend API config should keep base URL");
+assert.equal(apiConfig.token, "local-token", "frontend API config should read JWT token from localStorage");
+
+const requestedApiCalls = [];
+const fetchImpl = async (url, options = {}) => {
+  requestedApiCalls.push({ url, options });
+  if (url.endsWith("/api/live/company/tsmc")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        company: { id: "tsmc" },
+        priceSnapshot: { provider: "TWSE delayed", status: "available" },
+        feedStatuses: [{ feedType: "price", provider: "TWSE delayed", status: "delayed" }],
+        latestTechnologyAnnouncements: [],
+        latestMeetings: []
+      })
+    };
+  }
+  if (url.includes("/api/notes") && options.method === "POST") {
+    return {
+      ok: true,
+      status: 201,
+      json: async () => ({ note: { id: 7, title: "CoWoS follow-up", visibility: "shared" } })
+    };
+  }
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ items: [{ id: 7, title: "CoWoS follow-up", visibility: "shared" }] })
+  };
+};
+
+const livePayload = await fetchCompanyLive({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
+assert.equal(livePayload.company.id, "tsmc", "frontend API client should fetch company live payload");
+
+const notesPayload = await fetchNotes({
+  baseUrl: apiConfig.baseUrl,
+  entityType: "company",
+  entityId: "tsmc",
+  token: apiConfig.token,
+  fetchImpl
+});
+assert.equal(notesPayload.items[0].title, "CoWoS follow-up", "frontend API client should fetch authorized notes");
+
+const createdNote = await createNote({
+  baseUrl: apiConfig.baseUrl,
+  token: apiConfig.token,
+  note: {
+    entityType: "company",
+    entityId: "tsmc",
+    title: "CoWoS follow-up",
+    bodyMarkdown: "- Check capacity",
+    visibility: "shared"
+  },
+  fetchImpl
+});
+assert.equal(createdNote.note.visibility, "shared", "frontend API client should create shared markdown notes");
+assert.ok(
+  requestedApiCalls.some(call => call.options.headers?.authorization === "Bearer local-token"),
+  "frontend API client should send JWT bearer token to notes endpoints"
+);
 
 for (const contract of ingestionProviderContracts) {
   assert.ok(contract.id, "ingestion provider contract should include id");
@@ -298,6 +376,36 @@ assert.ok(
   companyHtml.includes("不是加總比例") && companyHtml.includes("不需要加總小於 100"),
   "company detail should clarify exposure scores are independent, non-additive scores"
 );
+
+const apiCompanyHtml = renderRoute({
+  ...requiredState,
+  route: "company",
+  companyTab: "notes",
+  api: {
+    enabled: true,
+    companyLive: {
+      tsmc: {
+        feedStatuses: [
+          { feedType: "price", provider: "TWSE delayed", status: "delayed", latestSourceTimestamp: "2026-05-23T04:00:00Z" },
+          { feedType: "filings", provider: "MOPS", status: "provider-ready" }
+        ],
+        latestMeetings: []
+      }
+    },
+    notes: {
+      tsmc: {
+        status: "ready",
+        items: [
+          { id: 7, title: "CoWoS follow-up", bodyMarkdown: "- Check capacity", visibility: "shared" }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiCompanyHtml.includes("api-live-status"), "company detail should render API provider statuses when available");
+assert.ok(apiCompanyHtml.includes("TWSE delayed") && apiCompanyHtml.includes("provider-ready"), "company API status should show providers and statuses");
+assert.ok(apiCompanyHtml.includes("note-visibility") && apiCompanyHtml.includes("data-save-note"), "notes tab should expose visibility and save controls");
+assert.ok(apiCompanyHtml.includes("CoWoS follow-up"), "notes tab should render API notes");
 
 const explorerHtml = renderRoute({ ...requiredState, route: "explorer" });
 assert.ok(

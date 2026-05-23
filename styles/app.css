@@ -765,6 +765,16 @@ tr.hidden, .hidden { display: none !important; }
 
 .company-tabs-block { display: grid; gap: 14px; }
 .company-tab-panel { display: grid; gap: 16px; }
+.notes-form { display: grid; gap: 10px; margin-top: 12px; }
+.notes-title {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--surface-soft);
+  padding: 0 12px;
+}
 .notes-area {
   width: 100%;
   min-height: 180px;
@@ -776,6 +786,9 @@ tr.hidden, .hidden { display: none !important; }
   padding: 14px;
   line-height: 1.55;
 }
+.note-actions { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.note-visibility { min-width: 150px; }
+.api-note-row small { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .tech-detail-selector {
   display: grid;

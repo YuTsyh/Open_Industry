@@ -59,6 +59,7 @@ function priceSummary(company) {
 export function renderCompany(state) {
   const companyId = state.companyId || "tsmc";
   const company = companies[companyId] || companies.tsmc;
+  const apiLive = state.api?.companyLive?.[companyId] || null;
   return `
     <section class="page-shell">
       <section class="company-header">
@@ -125,15 +126,15 @@ export function renderCompany(state) {
       </div>
 
       ${exposureGrid(company)}
-      ${companyLiveFeedPanel(company)}
+      ${companyLiveFeedPanel(company, apiLive)}
       ${relationshipGraph(company, companyId)}
-      ${renderCompanyTabs(company, state.companyTab || "role")}
+      ${renderCompanyTabs(company, state.companyTab || "role", state)}
       <footer class="disclaimer">For research and educational use only. Not investment advice. 價格與曝險分數為研究介面資料，不代表投資建議。</footer>
     </section>
   `;
 }
 
-function renderCompanyTabs(company, activeTab) {
+function renderCompanyTabs(company, activeTab, state) {
   const normalizedTab = activeTab === "network" ? "customers" : activeTab;
   const tabs = [
     ["role", "Supply Chain Role"],
@@ -154,7 +155,7 @@ function renderCompanyTabs(company, activeTab) {
         ${normalizedTab === "customers" ? renderNetworkTab(company) : ""}
         ${normalizedTab === "swot" ? renderSwotTab(company) : ""}
         ${normalizedTab === "news" ? renderNewsTab(company) : ""}
-        ${normalizedTab === "notes" ? renderNotesTab(company) : ""}
+        ${normalizedTab === "notes" ? renderNotesTab(company, state) : ""}
       </div>
     </section>
   `;
@@ -251,7 +252,60 @@ function renderNewsTab(company) {
   `;
 }
 
-function renderNotesTab(company) {
+function renderApiNotes(notesState = {}) {
+  const notes = notesState.items || [];
+  if (notesState.status === "loading") {
+    return `<div class="mini-row"><span>Loading notes from API...</span><span class="tag">pending</span></div>`;
+  }
+  if (notesState.error) {
+    return `<div class="mini-row"><span>${escapeHtml(notesState.error)}</span><span class="tag">error</span></div>`;
+  }
+  if (!notes.length) {
+    return `<div class="mini-row"><span>No saved API notes for this company yet.</span><span class="tag">empty</span></div>`;
+  }
+  return notes.map(note => `
+    <div class="mini-row api-note-row" data-note-id="${escapeHtml(String(note.id))}">
+      <span>
+        <strong>${escapeHtml(note.title || "Untitled note")}</strong><br>
+        <small>${escapeHtml(note.bodyMarkdown || "")}</small>
+      </span>
+      <span class="tag">${escapeHtml(note.visibility || "private")}</span>
+    </div>
+  `).join("");
+}
+
+function renderNotesTab(company, state = {}) {
+  const companyId = state.companyId || "tsmc";
+  const api = state.api || {};
+  const notesState = api.notes?.[companyId] || {};
+  const tokenState = api.enabled ? (api.token ? "JWT ready" : "JWT required") : "static fallback";
+  if (!api.enabled) return renderLegacyNotesTab(company);
+  return `
+    <article class="card">
+      <p class="eyebrow">Research notes</p>
+      <h2>Research notebook</h2>
+      <div class="mini-list api-notes-list">${renderApiNotes(notesState)}</div>
+      <div class="notes-form">
+        <input class="notes-title" data-note-title type="text" placeholder="Note title">
+        <textarea class="notes-area" data-note-body placeholder="Record ${escapeHtml(company.name)} exposure, price movement, supply-chain evidence and open questions..."></textarea>
+        <div class="note-actions">
+          <label class="field note-visibility">
+            <span>Visibility</span>
+            <select data-note-visibility>
+              <option value="private">Private</option>
+              <option value="shared">Shared</option>
+            </select>
+          </label>
+          <button class="pill-button primary" data-save-note data-company-id="${escapeHtml(companyId)}" type="button">Save note</button>
+          <span class="tag">${escapeHtml(tokenState)}</span>
+        </div>
+      </div>
+      <p class="small">API mode persists markdown notes through JWT-protected endpoints; without API settings this remains a local research scratchpad.</p>
+    </article>
+  `;
+}
+
+function renderLegacyNotesTab(company) {
   return `
     <article class="card">
       <p class="eyebrow">Research notes</p>

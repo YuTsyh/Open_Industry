@@ -1,4 +1,5 @@
 import { companies, industries, industryOrder, technologyCatalog, technologyMenus } from "./data.js";
+import { buildApiConfig, createNote, fetchCompanyLive, fetchNotes } from "./api/client.js";
 import { displayCompany, escapeHtml } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
 
@@ -25,7 +26,13 @@ const state = {
     exposure: 0,
     capability: "all"
   },
-  pinnedRelation: ""
+  pinnedRelation: "",
+  api: {
+    ...buildApiConfig(),
+    companyLive: {},
+    notes: {},
+    pending: {}
+  }
 };
 
 function syncTechnologyForIndustry() {
@@ -37,6 +44,7 @@ function render() {
   syncTechnologyForIndustry();
   root.innerHTML = renderRoute(state);
   syncNavigation();
+  refreshApiForRoute();
 }
 
 function syncNavigation() {
@@ -71,6 +79,81 @@ function openDrawer(companyId, relationText = "") {
 function closeDrawer() {
   drawer.classList.remove("open");
   drawer.setAttribute("aria-hidden", "true");
+}
+
+function shouldRenderApiRefresh(companyId) {
+  return state.route === "company" && state.companyId === companyId;
+}
+
+async function refreshCompanyApi(companyId) {
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[companyId]) return;
+  if (state.api.companyLive[companyId] && (!state.api.token || state.api.notes[companyId]?.status === "ready")) return;
+
+  state.api.pending[companyId] = true;
+  if (state.api.token && !state.api.notes[companyId]) {
+    state.api.notes[companyId] = { status: "loading", items: [] };
+  }
+
+  try {
+    state.api.companyLive[companyId] = await fetchCompanyLive({
+      baseUrl: state.api.baseUrl,
+      companyId
+    });
+  } catch (error) {
+    state.api.companyLive[companyId] = {
+      feedStatuses: [{ feedType: "api", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+
+  if (state.api.token) {
+    try {
+      const notes = await fetchNotes({
+        baseUrl: state.api.baseUrl,
+        entityType: "company",
+        entityId: companyId,
+        token: state.api.token
+      });
+      state.api.notes[companyId] = { status: "ready", items: notes.items || [] };
+    } catch (error) {
+      state.api.notes[companyId] = { status: "error", error: error.message, items: [] };
+    }
+  } else {
+    state.api.notes[companyId] = { status: "auth-required", items: [] };
+  }
+
+  delete state.api.pending[companyId];
+  if (shouldRenderApiRefresh(companyId)) render();
+}
+
+function refreshApiForRoute() {
+  if (state.route === "company") refreshCompanyApi(state.companyId || "tsmc");
+}
+
+async function saveCompanyNote(button) {
+  const companyId = button.dataset.companyId || state.companyId || "tsmc";
+  const card = button.closest(".card");
+  if (!state.api.enabled || !state.api.baseUrl || !state.api.token) {
+    state.api.notes[companyId] = { status: "error", error: "Configure API base URL and JWT token before saving notes.", items: state.api.notes[companyId]?.items || [] };
+    render();
+    return;
+  }
+
+  const title = card?.querySelector("[data-note-title]")?.value?.trim() || "Untitled note";
+  const bodyMarkdown = card?.querySelector("[data-note-body]")?.value || "";
+  const visibility = card?.querySelector("[data-note-visibility]")?.value || "private";
+
+  try {
+    const result = await createNote({
+      baseUrl: state.api.baseUrl,
+      token: state.api.token,
+      note: { entityType: "company", entityId: companyId, title, bodyMarkdown, visibility }
+    });
+    const current = state.api.notes[companyId]?.items || [];
+    state.api.notes[companyId] = { status: "ready", items: [result.note, ...current] };
+  } catch (error) {
+    state.api.notes[companyId] = { status: "error", error: error.message, items: state.api.notes[companyId]?.items || [] };
+  }
+  if (shouldRenderApiRefresh(companyId)) render();
 }
 
 function relationTextForNode(node) {
@@ -182,6 +265,12 @@ document.addEventListener("click", event => {
   const close = event.target.closest("#drawerClose");
   if (close) {
     closeDrawer();
+    return;
+  }
+
+  const saveNote = event.target.closest("[data-save-note]");
+  if (saveNote) {
+    saveCompanyNote(saveNote);
     return;
   }
 

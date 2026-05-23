@@ -39,6 +39,7 @@ Current executable API scaffold:
 - `INDUSTRYTOPO_JWT_SECRET` enables HS256 JWT verification for notes endpoints
 - `INDUSTRYTOPO_NOTES_FILE` overrides the local notes JSON store
 - `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
+- Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`
 
 The scaffold intentionally returns empty arrays plus `provider-ready` or `not-available` status for filings, news, options, and meetings until licensed ingestion is connected. This keeps the UI contract truthful instead of showing unlicensed or fabricated data.
 
