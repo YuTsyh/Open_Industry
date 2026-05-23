@@ -46,6 +46,34 @@ export function filterPanel(state) {
           ${["all", "High-end", "Mid-range"].map(value => `<option value="${value}" ${filters.capability === value ? "selected" : ""}>${value === "all" ? "全部" : value}</option>`).join("")}
         </select>
       </label>
+      <label class="field">Last news
+        <select data-filter="lastNewsDate">
+          ${[
+            ["all", "All dates"],
+            ["dated", "Has dated news"],
+            ["undated", "Needs date"]
+          ].map(([value, label]) => `<option value="${value}" ${filters.lastNewsDate === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>
+      <label class="field">Price performance
+        <select data-filter="pricePerformance">
+          ${[
+            ["all", "All performance"],
+            ["positive", "Positive"],
+            ["negative", "Negative"],
+            ["provider-ready", "Provider-ready"]
+          ].map(([value, label]) => `<option value="${value}" ${filters.pricePerformance === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>
+      <label class="field">Filings count
+        <select data-filter="filingsCount">
+          ${[
+            ["all", "All filings"],
+            ["has-filings", "Has filings"],
+            ["none", "No filings loaded"]
+          ].map(([value, label]) => `<option value="${value}" ${filters.filingsCount === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>
       <div class="view-toggle">
         <button class="view-button ${state.companyView === "table" ? "active" : ""}" data-view="table" type="button">Table</button>
         <button class="view-button ${state.companyView === "card" ? "active" : ""}" data-view="card" type="button">Cards</button>

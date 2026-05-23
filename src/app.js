@@ -34,13 +34,17 @@ const state = {
     role: "all",
     technicalLevel: "all",
     exposure: 0,
-    capability: "all"
+    capability: "all",
+    lastNewsDate: "all",
+    pricePerformance: "all",
+    filingsCount: "all"
   },
   pinnedRelation: "",
   api: {
     ...buildApiConfig(),
     companyLive: {},
     companyPrices: {},
+    companySignals: {},
     heatmap: {},
     industryEvents: {},
     technologyAnnouncements: {},
@@ -174,6 +178,32 @@ async function refreshCompanyPrice(companyId) {
   if (state.route === "industry" && state.industryTab === "landscape") render();
 }
 
+async function refreshCompanySignals(companyId) {
+  const key = `signals:${companyId}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.companySignals[companyId]) return;
+
+  state.api.pending[key] = true;
+  try {
+    const [news, filings] = await Promise.all([
+      fetchNews({ baseUrl: state.api.baseUrl, companyId }),
+      fetchFilings({ baseUrl: state.api.baseUrl, companyId })
+    ]);
+    state.api.companySignals[companyId] = {
+      news: news.items || [],
+      filings: filings.items || [],
+      providerStatuses: [...(news.providerStatuses || []), ...(filings.providerStatuses || [])]
+    };
+  } catch (error) {
+    state.api.companySignals[companyId] = {
+      news: [],
+      filings: [],
+      providerStatuses: [{ feedType: "company-signals", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[key];
+  if (state.route === "industry" && state.industryTab === "landscape") render();
+}
+
 async function refreshHeatmap() {
   const key = `${state.heatRange}:${state.heatUniverse}`;
   const pendingKey = `heatmap:${key}`;
@@ -249,7 +279,10 @@ function refreshApiForRoute() {
     refreshCompanyPrice(state.companyId || "tsmc");
   }
   if (state.route === "industry" && state.industryTab === "landscape") {
-    industryCompanyIds(industries[state.industryId] || industries[defaultIndustry]).slice(0, 12).forEach(refreshCompanyPrice);
+    industryCompanyIds(industries[state.industryId] || industries[defaultIndustry]).slice(0, 12).forEach(companyId => {
+      refreshCompanyPrice(companyId);
+      refreshCompanySignals(companyId);
+    });
   }
   if (state.route === "industry" && state.industryTab === "news") refreshIndustryEvents(state.industryId);
   if (state.route === "technology") refreshTechnologyAnnouncements(state.techId);

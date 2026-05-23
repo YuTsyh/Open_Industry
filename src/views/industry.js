@@ -87,14 +87,14 @@ function renderIndustryMap(state, industry) {
 
 function renderIndustryLandscape(state, industry) {
   const ids = industryCompanyIds(industry);
-  const rows = companyRows(ids, state.filters, state.industryId, state.api?.companyPrices || {});
+  const rows = companyRows(ids, state.filters, state.industryId, state.api?.companyPrices || {}, state.api?.companySignals || {});
   const cardViewClass = state.companyView === "card" ? "card-view" : "";
   return `
     <section class="tab-panel active landscape ${cardViewClass}">
       ${filterPanel(state)}
       <div class="data-table-wrap">
         <table>
-          <thead><tr><th>Company</th><th>Market</th><th>Supply-chain role</th><th>Purity / exposure</th><th>Technical level</th><th>Main customers</th><th>Alternative suppliers</th><th>Confidence</th></tr></thead>
+          <thead><tr><th>Company</th><th>Market</th><th>Supply-chain role</th><th>Purity / exposure</th><th>Technical level</th><th>Main customers</th><th>Alternative suppliers</th><th>Last news</th><th>Price perf</th><th>Filings</th><th>Confidence</th></tr></thead>
           <tbody>${rows.table}</tbody>
         </table>
       </div>

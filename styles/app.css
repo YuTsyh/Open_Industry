@@ -630,7 +630,7 @@ h3 { font-size: 18px; line-height: 1.25; }
 .node-card.midstream { border-width: 2px; }
 .node-card.downstream { border-color: color-mix(in srgb, var(--blue), var(--line) 42%); }
 
-.filter-panel { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-soft); }
+.filter-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-soft); }
 .landscape { min-width: 0; max-width: 100%; overflow-x: clip; }
 .data-table-wrap {
   width: 100%;
@@ -642,11 +642,13 @@ h3 { font-size: 18px; line-height: 1.25; }
   border-radius: var(--radius);
   background: var(--surface);
 }
-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+table { width: 100%; border-collapse: collapse; min-width: 1080px; }
 th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 th { color: var(--muted); font-size: 12px; font-weight: 800; background: var(--surface-soft); }
 tbody tr[data-company-id] { cursor: pointer; }
 tbody tr[data-company-id]:hover { background: var(--surface-soft); }
+.signal-cell { min-width: 96px; overflow-wrap: anywhere; }
+.signal-cell strong { font-family: var(--mono); font-size: 12px; }
 tr.hidden, .hidden { display: none !important; }
 .landscape-card-view { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .card-view .data-table-wrap { display: none; }

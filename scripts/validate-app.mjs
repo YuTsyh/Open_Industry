@@ -43,7 +43,10 @@ const requiredState = {
     role: "all",
     technicalLevel: "all",
     exposure: 0,
-    capability: "all"
+    capability: "all",
+    lastNewsDate: "all",
+    pricePerformance: "all",
+    filingsCount: "all"
   },
   pinnedRelation: ""
 };
@@ -550,6 +553,54 @@ const apiLandscapeHtml = renderRoute({
 });
 assert.ok(apiLandscapeHtml.includes("company-row-sparkline"), "company landscape table should render company mini-charts");
 assert.ok(apiLandscapeHtml.includes("data-price-sparkline"), "company mini-charts should expose stable chart markup");
+
+const apiLandscapeFiltersHtml = renderRoute({
+  ...requiredState,
+  route: "industry",
+  industryTab: "landscape",
+  filters: {
+    ...requiredState.filters,
+    lastNewsDate: "dated",
+    pricePerformance: "positive",
+    filingsCount: "has-filings"
+  },
+  api: {
+    enabled: true,
+    companyPrices: {
+      tsmc: {
+        trend: { label: "+2.67%", changePercent: 2.67, status: "delayed" },
+        provider: "TWSE delayed",
+        history: [{ date: "2026-05-23", close: 2310, provider: "TWSE delayed", sourceTimestamp: "2026-05-23T06:00:00Z" }]
+      },
+      ase: {
+        trend: { label: "-1.20%", changePercent: -1.2, status: "delayed" },
+        provider: "TWSE delayed",
+        history: [{ date: "2026-05-23", close: 168, provider: "TWSE delayed", sourceTimestamp: "2026-05-23T06:00:00Z" }]
+      }
+    },
+    companySignals: {
+      tsmc: {
+        news: [{ title: "CoWoS capacity update", publishedAt: "2026-05-23", sourceUrl: "https://example.com/news" }],
+        filings: [{ title: "Monthly revenue filing", publishedAt: "2026-05-22", sourceUrl: "https://example.com/filing" }]
+      },
+      ase: {
+        news: [{ title: "Provider-ready news", publishedAt: null, sourceUrl: "https://example.com/ase-news" }],
+        filings: []
+      }
+    }
+  }
+});
+assert.ok(apiLandscapeFiltersHtml.includes('data-filter="lastNewsDate"'), "company landscape should include last news date filter");
+assert.ok(apiLandscapeFiltersHtml.includes('data-filter="pricePerformance"'), "company landscape should include price performance filter");
+assert.ok(apiLandscapeFiltersHtml.includes('data-filter="filingsCount"'), "company landscape should include filings count filter");
+assert.ok(
+  apiLandscapeFiltersHtml.includes("Last news") &&
+    apiLandscapeFiltersHtml.includes("Price perf") &&
+    apiLandscapeFiltersHtml.includes("Filings"),
+  "company landscape should include signal columns"
+);
+assert.ok(apiLandscapeFiltersHtml.includes('data-company-id="tsmc"'), "combined API filters should keep companies matching dated news, positive price and filings");
+assert.ok(!apiLandscapeFiltersHtml.includes('data-company-id="ase"'), "combined API filters should hide company rows/cards without dated news, positive price and filings");
 
 const apiCompanyHtml = renderRoute({
   ...requiredState,
