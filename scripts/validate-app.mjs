@@ -11,6 +11,7 @@ import { officialTechnologySources } from "../src/components/officialEvidence.js
 import { nextRovingIndex } from "../src/components/a11y.js";
 import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "../src/components/searchSuggestions.js";
 import { buildLiveHeatmapRows } from "../src/domain/heatmapMetrics.js";
+import { renderMarkdownPreview } from "../src/utils.js";
 import { renderRoute } from "../src/views/index.js";
 import {
   buildApiConfig,
@@ -60,6 +61,16 @@ const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf
 const appCss = await readFile(new URL("../styles/app.css", import.meta.url), "utf8");
 const appJs = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 const schemaSql = await readFile(new URL("../server/schema.sql", import.meta.url), "utf8");
+
+const markdownPreview = renderMarkdownPreview("- Check **capacity**\n<script>alert(1)</script>");
+assert.ok(
+  markdownPreview.includes("<ul><li>Check <strong>capacity</strong></li></ul>"),
+  "markdown note preview should render bullets and bold emphasis"
+);
+assert.ok(
+  markdownPreview.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !markdownPreview.includes("<script>"),
+  "markdown note preview should escape unsafe HTML"
+);
 
 function testJwt(payload) {
   const encode = value => Buffer.from(JSON.stringify(value))
@@ -860,7 +871,7 @@ const apiCompanyHtml = renderRoute({
             id: 7,
             ownerUserId: "analyst-1",
             title: "CoWoS follow-up",
-            bodyMarkdown: "- Check capacity",
+            bodyMarkdown: "- Check **capacity**\n<script>alert(1)</script>",
             visibility: "shared",
             collaborators: [{ userId: "analyst-2", role: "reader" }]
           }
@@ -880,6 +891,16 @@ assert.ok(
   "collaborator role editor should have a scoped width guard"
 );
 assert.ok(apiCompanyHtml.includes("CoWoS follow-up"), "notes tab should render API notes");
+assert.ok(
+  apiCompanyHtml.includes("note-markdown") &&
+  apiCompanyHtml.includes("<strong>capacity</strong>") &&
+  apiCompanyHtml.includes("&lt;script&gt;alert(1)&lt;/script&gt;"),
+  "notes tab should render saved markdown as safe rich annotations"
+);
+assert.ok(
+  apiCompanyHtml.includes("data-note-preview") && appJs.includes("updateNotePreview"),
+  "notes editor should expose a live markdown preview target"
+);
 assert.ok(
   appJs.includes("[data-note-collaborators]") && appJs.includes("collaborators"),
   "save note handler should include collaborator ids in API note payloads"

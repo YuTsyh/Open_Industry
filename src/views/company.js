@@ -1,6 +1,6 @@
 import { companies, officialSources } from "../data.js";
 import { formatPriceSnapshot, topIndustryExposures } from "../domain/companyMetrics.js";
-import { escapeHtml } from "../utils.js";
+import { escapeHtml, renderMarkdownPreview } from "../utils.js";
 import { confidenceBadge, marketBadge, techBadge } from "../components/badges.js";
 import { relationshipGraph } from "../components/maps.js";
 import { companyLiveFeedPanel } from "../components/liveFeeds.js";
@@ -338,7 +338,7 @@ function renderApiNotes(notesState = {}, { currentUserId = "", companyId = "" } 
     <div class="mini-row api-note-row" data-note-id="${escapeHtml(String(note.id))}">
       <span>
         <strong>${escapeHtml(note.title || "Untitled note")}</strong><br>
-        <small>${escapeHtml(note.bodyMarkdown || "")}</small>
+        <div class="note-markdown">${renderMarkdownPreview(note.bodyMarkdown || "")}</div>
         ${note.ownerUserId === currentUserId ? `
           <span class="note-collaborator-editor">
             <input class="notes-title" data-note-collaborator-editor type="text" value="${escapeHtml(collaboratorValue(note.collaborators || []))}" aria-label="Collaborator roles for ${escapeHtml(note.title || "Untitled note")}">
@@ -365,6 +365,7 @@ function renderNotesTab(company, state = {}) {
       <div class="notes-form">
         <input class="notes-title" data-note-title type="text" placeholder="Note title">
         <textarea class="notes-area" data-note-body placeholder="Record ${escapeHtml(company.name)} exposure, price movement, supply-chain evidence and open questions..."></textarea>
+        <div class="note-markdown note-markdown-preview" data-note-preview aria-live="polite"></div>
         <input class="notes-title" data-note-collaborators type="text" placeholder="Collaborators, e.g. user:reader, teammate:editor">
         <div class="note-actions">
           <label class="field note-visibility">

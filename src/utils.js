@@ -9,6 +9,40 @@ export function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function renderInlineMarkdown(value) {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+export function renderMarkdownPreview(value) {
+  const lines = String(value ?? "").split(/\r?\n/);
+  const parts = [];
+  let listItems = [];
+  const flushList = () => {
+    if (!listItems.length) return;
+    parts.push(`<ul>${listItems.map(item => `<li>${item}</li>`).join("")}</ul>`);
+    listItems = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      listItems.push(renderInlineMarkdown(bullet[1]));
+      continue;
+    }
+    flushList();
+    parts.push(`<p>${renderInlineMarkdown(trimmed)}</p>`);
+  }
+  flushList();
+  return parts.join("");
+}
+
 export function displayCompany(id) {
   const company = companies[id];
   if (!company) return "Unknown company";

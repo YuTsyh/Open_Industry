@@ -15,7 +15,7 @@ import {
 } from "./api/client.js";
 import { nextRovingIndex } from "./components/a11y.js";
 import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "./components/searchSuggestions.js";
-import { displayCompany, escapeHtml, industryCompanyIds } from "./utils.js";
+import { displayCompany, escapeHtml, industryCompanyIds, renderMarkdownPreview } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
 
 const root = document.querySelector("#appRoot");
@@ -404,6 +404,11 @@ function parseCollaborators(value = "") {
     .filter(item => item.userId);
 }
 
+function updateNotePreview(textarea) {
+  const preview = textarea.closest(".card")?.querySelector("[data-note-preview]");
+  if (preview) preview.innerHTML = renderMarkdownPreview(textarea.value);
+}
+
 async function updateNoteCollaborators(button) {
   const companyId = button.dataset.companyId || state.companyId || "tsmc";
   const noteId = button.dataset.noteId;
@@ -749,6 +754,7 @@ document.addEventListener("input", event => {
     state.filters.exposure = Number(event.target.value);
     render();
   }
+  if (event.target.matches("[data-note-body]")) updateNotePreview(event.target);
   if (event.target === searchInput) renderSuggestions(event.target.value);
 });
 
