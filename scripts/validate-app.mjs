@@ -16,6 +16,7 @@ import {
   buildApiConfig,
   createNote,
   fetchCompanyPrice,
+  fetchCompanyMeetings,
   fetchFilings,
   fetchCompanyLive,
   fetchHeatmap,
@@ -148,6 +149,27 @@ const fetchImpl = async (url, options = {}) => {
       })
     };
   }
+  if (url.endsWith("/api/live/company/tsmc/meetings")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        companyId: "tsmc",
+        items: [
+          {
+            id: 21,
+            title: "Technology conference transcript",
+            heldAt: "2026-05-20T13:00:00Z",
+            summary: "Management discussed advanced packaging constraints.",
+            sourceUrl: "https://example.com/meeting",
+            transcriptUrl: "https://example.com/transcript",
+            keyPoints: ["CoWoS demand", "HBM constraints"]
+          }
+        ],
+        providerStatuses: [{ feedType: "meetings", provider: "licensed transcript provider", status: "provider-ready" }]
+      })
+    };
+  }
   if (url.includes("/api/live/heatmap")) {
     return {
       ok: true,
@@ -211,6 +233,10 @@ assert.equal(livePayload.company.id, "tsmc", "frontend API client should fetch c
 const pricePayload = await fetchCompanyPrice({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
 assert.equal(pricePayload.history.length, 2, "frontend API client should fetch source-backed price history points");
 assert.equal(pricePayload.trend.label, "+2.67%", "frontend API client should keep trend metadata");
+
+const meetingsPayload = await fetchCompanyMeetings({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
+assert.equal(meetingsPayload.items[0].title, "Technology conference transcript", "frontend API client should fetch meeting transcript items");
+assert.equal(meetingsPayload.items[0].transcriptUrl, "https://example.com/transcript", "meeting transcript payload should preserve transcript links");
 
 const heatmapPayload = await fetchHeatmap({ baseUrl: apiConfig.baseUrl, period: "latest", universe: "cap", fetchImpl });
 assert.equal(heatmapPayload.rows[0].label, "API Advanced Packaging", "frontend API client should fetch live heatmap rows");
@@ -755,9 +781,15 @@ const apiCompanyNewsHtml = renderRoute({
         latestFilings: [
           { title: "Monthly revenue filing", extractedSummary: "Filing summary.", sourceUrl: "https://example.com/filing", publishedAt: "2026-05-22" }
         ],
-        latestMeetings: [
-          { title: "Technology conference transcript", summary: "Management discussed advanced packaging constraints.", sourceUrl: "https://example.com/meeting", keyPoints: ["CoWoS demand", "HBM constraints"] }
-        ]
+        latestMeetings: []
+      }
+    },
+    companyMeetings: {
+      tsmc: {
+        items: [
+          { title: "Technology conference transcript", summary: "Management discussed advanced packaging constraints.", sourceUrl: "https://example.com/meeting", transcriptUrl: "https://example.com/transcript", keyPoints: ["CoWoS demand", "HBM constraints"] }
+        ],
+        providerStatuses: [{ feedType: "meetings", provider: "licensed transcript provider", status: "provider-ready" }]
       }
     }
   }
@@ -765,6 +797,8 @@ const apiCompanyNewsHtml = renderRoute({
 assert.ok(apiCompanyNewsHtml.includes("company-event-timeline"), "company news tab should render API event timeline");
 assert.ok(apiCompanyNewsHtml.includes("Meeting Transcripts"), "company news tab should render meeting transcript panel");
 assert.ok(apiCompanyNewsHtml.includes("CoWoS capacity update") && apiCompanyNewsHtml.includes("Monthly revenue filing"), "company news tab should show news and filings");
+assert.ok(apiCompanyNewsHtml.includes("https://example.com/transcript"), "meeting transcript panel should keep transcript links separate from source cards");
+assert.ok(apiCompanyNewsHtml.includes("licensed transcript provider") && apiCompanyNewsHtml.includes("provider-ready"), "meeting transcript panel should show provider freshness status");
 
 const apiIndustryNewsHtml = renderRoute({
   ...requiredState,

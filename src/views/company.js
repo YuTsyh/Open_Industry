@@ -251,7 +251,7 @@ function eventCard(item, type) {
   `;
 }
 
-function renderMeetingPanel(meetings = []) {
+function renderMeetingPanel(meetings = [], providerStatuses = []) {
   return `
     <article class="card meeting-transcripts-panel">
       <p class="eyebrow">Meeting Transcripts</p>
@@ -264,10 +264,15 @@ function renderMeetingPanel(meetings = []) {
               <small>${escapeHtml(item.summary || "")}</small>
               ${(item.keyPoints || []).map(point => `<br><small>${escapeHtml(point)}</small>`).join("")}
             </span>
-            ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : `<span class="tag">provider-ready</span>`}
+            <span class="source-row">
+              ${item.transcriptUrl ? `<a class="tag" href="${escapeHtml(item.transcriptUrl)}" target="_blank" rel="noreferrer">Transcript</a>` : ""}
+              ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : ""}
+              ${!item.sourceUrl && !item.transcriptUrl ? `<span class="tag">provider-ready</span>` : ""}
+            </span>
           </div>
         `).join("") : `<div class="mini-row"><span>No meeting transcript loaded yet.</span><span class="tag">provider-ready</span></div>`}
       </div>
+      ${providerStatuses.length ? `<div class="source-row">${providerStatuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "meetings")} · ${escapeHtml(item.status || "provider-ready")}</span>`).join("")}</div>` : ""}
     </article>
   `;
 }
@@ -276,11 +281,13 @@ function renderNewsTab(company, state = {}) {
   const snapshot = company.liveFeeds?.priceSnapshot || {};
   const companyId = state.companyId || "tsmc";
   const apiLive = state.api?.companyLive?.[companyId] || {};
+  const meetingPayload = state.api?.companyMeetings?.[companyId] || {};
+  const meetings = meetingPayload.items || apiLive.latestMeetings || [];
   const events = [
     ...(apiLive.latestNews || []).map(item => ({ ...item, type: "news" })),
     ...(apiLive.latestFilings || []).map(item => ({ ...item, type: "filing" }))
   ];
-  if (events.length || (apiLive.latestMeetings || []).length) {
+  if (events.length || meetings.length) {
     return `
       <div class="overview-grid">
         <article class="card company-event-timeline">
@@ -290,7 +297,7 @@ function renderNewsTab(company, state = {}) {
             ${events.length ? events.map(item => eventCard(item, item.type)).join("") : `<div class="timeline-step"><strong>No events loaded yet</strong><span class="small">provider-ready</span></div>`}
           </div>
         </article>
-        ${renderMeetingPanel(apiLive.latestMeetings || [])}
+        ${renderMeetingPanel(meetings, meetingPayload.providerStatuses || [])}
       </div>
     `;
   }

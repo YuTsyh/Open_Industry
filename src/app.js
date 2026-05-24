@@ -3,6 +3,7 @@ import {
   buildApiConfig,
   createNote,
   fetchCompanyLive,
+  fetchCompanyMeetings,
   fetchCompanyPrice,
   fetchFilings,
   fetchHeatmap,
@@ -45,6 +46,7 @@ const state = {
   api: {
     ...buildApiConfig(),
     companyLive: {},
+    companyMeetings: {},
     companyPrices: {},
     companySignals: {},
     heatmap: {},
@@ -183,6 +185,30 @@ async function refreshCompanyPrice(companyId) {
   if (state.route === "industry" && state.industryTab === "landscape") render();
 }
 
+function shouldFetchCompanyMeetings(companyId) {
+  return state.route === "company" && state.companyId === companyId && state.companyTab === "news";
+}
+
+async function refreshCompanyMeetings(companyId) {
+  const key = `meetings:${companyId}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.companyMeetings[companyId]) return;
+
+  state.api.pending[key] = true;
+  try {
+    state.api.companyMeetings[companyId] = await fetchCompanyMeetings({
+      baseUrl: state.api.baseUrl,
+      companyId
+    });
+  } catch (error) {
+    state.api.companyMeetings[companyId] = {
+      items: [],
+      providerStatuses: [{ feedType: "meetings", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[key];
+  if (shouldFetchCompanyMeetings(companyId)) render();
+}
+
 async function refreshCompanySignals(companyId) {
   const key = `signals:${companyId}`;
   if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.companySignals[companyId]) return;
@@ -282,6 +308,7 @@ function refreshApiForRoute() {
   if (state.route === "company") {
     refreshCompanyApi(state.companyId || "tsmc");
     refreshCompanyPrice(state.companyId || "tsmc");
+    if (state.companyTab === "news") refreshCompanyMeetings(state.companyId || "tsmc");
   }
   if (state.route === "industry" && state.industryTab === "landscape") {
     industryCompanyIds(industries[state.industryId] || industries[defaultIndustry]).slice(0, 12).forEach(companyId => {
