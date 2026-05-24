@@ -7,6 +7,7 @@ import {
   fetchCompanyPrice,
   fetchFilings,
   fetchHeatmap,
+  fetchIngestionStatus,
   fetchNews,
   fetchNotes,
   fetchTechnologyAnnouncements
@@ -50,6 +51,7 @@ const state = {
     companyPrices: {},
     companySignals: {},
     heatmap: {},
+    ingestionStatus: null,
     industryEvents: {},
     technologyAnnouncements: {},
     notes: {},
@@ -257,6 +259,42 @@ async function refreshHeatmap() {
   if (state.route === "overview") render();
 }
 
+async function refreshIngestionStatus() {
+  const key = "ingestion-status";
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.ingestionStatus) return;
+
+  state.api.pending[key] = true;
+  try {
+    state.api.ingestionStatus = await fetchIngestionStatus({
+      baseUrl: state.api.baseUrl
+    });
+  } catch (error) {
+    state.api.ingestionStatus = {
+      summary: {
+        providersTotal: 0,
+        providersSucceeded: 0,
+        providersSkipped: 0,
+        providersFailed: 1,
+        providersRateLimited: 0,
+        latestRunAt: null
+      },
+      alerts: [
+        {
+          level: "error",
+          code: "ingestion-status-error",
+          providerId: "api",
+          provider: state.api.baseUrl,
+          feedType: "ingestion",
+          message: error.message,
+          action: "Check the ingestion status endpoint and API server logs."
+        }
+      ]
+    };
+  }
+  delete state.api.pending[key];
+  if (state.route === "overview") render();
+}
+
 async function refreshIndustryEvents(industryId) {
   const key = `industry:${industryId}`;
   if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.industryEvents[industryId]) return;
@@ -304,7 +342,10 @@ async function refreshTechnologyAnnouncements(technologyId) {
 }
 
 function refreshApiForRoute() {
-  if (state.route === "overview") refreshHeatmap();
+  if (state.route === "overview") {
+    refreshHeatmap();
+    refreshIngestionStatus();
+  }
   if (state.route === "company") {
     refreshCompanyApi(state.companyId || "tsmc");
     refreshCompanyPrice(state.companyId || "tsmc");

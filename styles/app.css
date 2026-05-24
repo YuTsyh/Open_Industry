@@ -404,6 +404,7 @@ h3 { font-size: 18px; line-height: 1.25; }
 .health-item strong { color: var(--navy); font-size: 22px; line-height: 1; overflow-wrap: anywhere; }
 .health-item span { color: var(--ink); font-size: 12px; font-weight: 850; }
 .health-item small { color: var(--muted); line-height: 1.4; overflow-wrap: anywhere; }
+.ingestion-health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .gap-list { display: grid; gap: 8px; }
 .source-row { display: grid; gap: 6px; }
 .source-row a {

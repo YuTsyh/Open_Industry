@@ -20,6 +20,7 @@ import {
   fetchFilings,
   fetchCompanyLive,
   fetchHeatmap,
+  fetchIngestionStatus,
   fetchNews,
   fetchNotes,
   fetchTechnologyAnnouncements
@@ -192,6 +193,35 @@ const fetchImpl = async (url, options = {}) => {
       })
     };
   }
+  if (url.endsWith("/api/ingestion/status")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        summary: {
+          providersTotal: 6,
+          providersSucceeded: 3,
+          providersSkipped: 1,
+          providersFailed: 2,
+          providersRateLimited: 1,
+          latestRunAt: "2026-05-23T06:00:00Z"
+        },
+        alerts: [
+          {
+            level: "warning",
+            code: "rate-limit",
+            providerId: "sec-edgar-filings",
+            provider: "SEC EDGAR",
+            feedType: "filings",
+            message: "HTTP 429 rate limit exceeded",
+            action: "Apply provider-specific backoff before retrying."
+          }
+        ],
+        feedStatuses: [],
+        recentRuns: []
+      })
+    };
+  }
   if (url.includes("/api/notes") && options.method === "POST") {
     return {
       ok: true,
@@ -240,6 +270,10 @@ assert.equal(meetingsPayload.items[0].transcriptUrl, "https://example.com/transc
 
 const heatmapPayload = await fetchHeatmap({ baseUrl: apiConfig.baseUrl, period: "latest", universe: "cap", fetchImpl });
 assert.equal(heatmapPayload.rows[0].label, "API Advanced Packaging", "frontend API client should fetch live heatmap rows");
+
+const ingestionStatusPayload = await fetchIngestionStatus({ baseUrl: apiConfig.baseUrl, fetchImpl });
+assert.equal(ingestionStatusPayload.summary.providersRateLimited, 1, "frontend API client should fetch ingestion rate-limit summary");
+assert.equal(ingestionStatusPayload.alerts[0].code, "rate-limit", "frontend API client should preserve ingestion alert codes");
 
 const notesPayload = await fetchNotes({
   baseUrl: apiConfig.baseUrl,
@@ -553,6 +587,7 @@ const apiOverviewHtml = renderRoute({
   route: "overview",
   api: {
     enabled: true,
+    ingestionStatus: ingestionStatusPayload,
     heatmap: {
       "latest:cap": {
         rows: [
@@ -572,6 +607,14 @@ const apiOverviewHtml = renderRoute({
 });
 assert.ok(apiOverviewHtml.includes("API Advanced Packaging"), "overview should render API heatmap rows when loaded");
 assert.ok(apiOverviewHtml.includes("TWSE delayed"), "overview API heatmap should keep provider labels");
+assert.ok(apiOverviewHtml.includes("ingestion-monitoring-panel"), "overview should render ingestion monitoring panel when status is loaded");
+assert.ok(apiOverviewHtml.includes("sec-edgar-filings") && apiOverviewHtml.includes("rate-limit"), "overview ingestion panel should expose provider and alert code");
+assert.ok(apiOverviewHtml.includes("Apply provider-specific backoff"), "overview ingestion panel should show actionable remediation");
+assert.ok(
+  appCss.includes(".ingestion-health-grid") &&
+    appCss.includes("repeat(4, minmax(0, 1fr))"),
+  "ingestion monitoring summary should use a four-column desktop grid instead of inheriting the six-column health grid"
+);
 
 const technologyHtml = renderRoute({ ...requiredState, route: "technology" });
 assert.ok(

@@ -66,7 +66,7 @@ export function renderOverview(state, industry) {
       </div>
 
       ${overviewResearchWorkbench(state, industry)}
-      ${researchHealthPanel()}
+      ${researchHealthPanel(state.api?.ingestionStatus)}
       ${officialEvidencePanel(state.industryId, { compact: true })}
 
       <div class="research-grid overview-context-grid">

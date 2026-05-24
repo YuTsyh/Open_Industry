@@ -67,7 +67,47 @@ export function overviewResearchWorkbench(state, industry) {
   `;
 }
 
-export function researchHealthPanel() {
+function ingestionMonitoringPanel(ingestionStatus) {
+  if (!ingestionStatus?.summary) return "";
+
+  const summary = ingestionStatus.summary;
+  const alerts = ingestionStatus.alerts || [];
+  const summaryItems = [
+    ["Providers", summary.providersTotal ?? 0, "configured ingestion contracts"],
+    ["Succeeded", summary.providersSucceeded ?? 0, "latest provider runs"],
+    ["Failed", summary.providersFailed ?? 0, "requires operator review"],
+    ["Rate limits", summary.providersRateLimited ?? 0, "backoff / vendor reset needed"]
+  ];
+
+  return `
+    <div class="gap-list ingestion-monitoring-panel" aria-label="Ingestion monitoring alerts">
+      <h3>Ingestion monitoring</h3>
+      <div class="health-grid ingestion-health-grid">
+        ${summaryItems.map(([label, value, note]) => `
+          <div class="health-item">
+            <strong>${escapeHtml(String(value))}</strong>
+            <span>${escapeHtml(label)}</span>
+            <small>${escapeHtml(note)}</small>
+          </div>
+        `).join("")}
+      </div>
+      <div class="mini-list">
+        ${alerts.length ? alerts.map(alert => `
+          <div class="mini-row">
+            <span>
+              <strong>${escapeHtml(alert.providerId || alert.provider || "provider")}</strong>
+              <br><small>${escapeHtml(alert.message || "No message")}</small>
+              <br><small>${escapeHtml(alert.action || "Review provider run details.")}</small>
+            </span>
+            <span class="tag">${escapeHtml(alert.code || alert.level || "alert")}</span>
+          </div>
+        `).join("") : `<div class="mini-row"><span>No ingestion alerts from the current API status.</span><span class="tag">clear</span></div>`}
+      </div>
+    </div>
+  `;
+}
+
+export function researchHealthPanel(ingestionStatus) {
   const companyRecords = Object.values(companies);
   const techIds = [...new Set(Object.values(technologyMenus).flat())];
   const pricedCompanies = companyRecords.filter(company => company.liveFeeds?.priceSnapshot?.status === "available").length;
@@ -119,6 +159,7 @@ export function researchHealthPanel() {
           ${gaps.map(item => `<div class="mini-row"><span>${escapeHtml(item)}</span>${confidenceBadge("medium", "todo")}</div>`).join("")}
         </div>
       </div>
+      ${ingestionMonitoringPanel(ingestionStatus)}
     </section>
   `;
 }

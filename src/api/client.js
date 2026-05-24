@@ -81,6 +81,11 @@ export async function fetchHeatmap({
   return readJson(response);
 }
 
+export async function fetchIngestionStatus({ baseUrl, fetchImpl = globalThis.fetch }) {
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/ingestion/status`);
+  return readJson(response);
+}
+
 export async function fetchFilings({
   baseUrl,
   companyId,
