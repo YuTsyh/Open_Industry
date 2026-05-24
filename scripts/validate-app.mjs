@@ -8,6 +8,7 @@ import {
   technologyStepExplainer
 } from "../src/components/technologyDetails.js";
 import { officialTechnologySources } from "../src/components/officialEvidence.js";
+import { nextRovingIndex } from "../src/components/a11y.js";
 import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "../src/components/searchSuggestions.js";
 import { buildLiveHeatmapRows } from "../src/domain/heatmapMetrics.js";
 import { renderRoute } from "../src/views/index.js";
@@ -321,6 +322,10 @@ assert.equal(nextSearchIndex(-1, 3, "ArrowDown"), 0, "ArrowDown should move from
 assert.equal(nextSearchIndex(0, 3, "ArrowDown"), 1, "ArrowDown should move to the next suggestion");
 assert.equal(nextSearchIndex(0, 3, "ArrowUp"), 2, "ArrowUp should wrap from first suggestion to last");
 assert.equal(nextSearchIndex(2, 3, "ArrowDown"), 0, "ArrowDown should wrap from last suggestion to first");
+assert.equal(nextRovingIndex(0, 6, "ArrowRight"), 1, "ArrowRight should move tab focus to the next tab");
+assert.equal(nextRovingIndex(0, 6, "ArrowLeft"), 5, "ArrowLeft should wrap tab focus to the last tab");
+assert.equal(nextRovingIndex(3, 6, "Home"), 0, "Home should move tab focus to the first tab");
+assert.equal(nextRovingIndex(3, 6, "End"), 5, "End should move tab focus to the last tab");
 
 for (const contract of ingestionProviderContracts) {
   assert.ok(contract.id, "ingestion provider contract should include id");
@@ -449,6 +454,15 @@ for (const route of ["overview", "explorer", "industry", "company", "technology"
 for (const tab of ["overview", "map", "landscape", "bottlenecks", "technology", "news"]) {
   const html = renderRoute({ ...requiredState, route: "industry", industryTab: tab });
   assert.ok(html.length > 500, `industry ${tab} tab should render substantial content`);
+  assert.ok(
+    html.includes('role="tablist"') &&
+      html.includes(`id="industry-tab-${tab}"`) &&
+      html.includes(`aria-controls="industry-panel-${tab}"`) &&
+      html.includes('aria-selected="true"') &&
+      html.includes(`id="industry-panel-${tab}"`) &&
+      html.includes('role="tabpanel"'),
+    `industry ${tab} tab should expose tablist, active tab, and panel ARIA wiring`
+  );
   if (tab === "map") {
     assert.ok(html.includes("topology-board"), "industry supply-chain map tab should render the topology board");
     assert.equal(
@@ -463,6 +477,22 @@ for (const tab of ["overview", "map", "landscape", "bottlenecks", "technology", 
     );
   }
 }
+
+const companyRoleHtml = renderRoute({ ...requiredState, route: "company", companyTab: "role" });
+assert.ok(
+  companyRoleHtml.includes('role="tablist"') &&
+    companyRoleHtml.includes('id="company-tab-role"') &&
+    companyRoleHtml.includes('aria-controls="company-panel-role"') &&
+    companyRoleHtml.includes('id="company-panel-role"') &&
+    companyRoleHtml.includes('role="tabpanel"'),
+  "company tabs should expose tablist, active tab, and panel ARIA wiring"
+);
+assert.ok(
+  companyRoleHtml.includes('data-relationship-graph role="group"') &&
+    companyRoleHtml.includes('aria-label="Relationship graph') &&
+    companyRoleHtml.includes('aria-label="Focus relationship'),
+  "relationship graph should expose keyboard-readable graph and node labels"
+);
 
 const heatmapRows = buildLiveHeatmapRows({ universeId: "cap", rangeId: "latest" });
 assert.ok(heatmapRows.length >= 6, "overview heatmap should cover the configured industries");

@@ -32,8 +32,8 @@ export function renderIndustry(state, industry) {
           <span class="tag">更新：${escapeHtml(industry.snapshot.updated)}</span>
         </div>
       </section>
-      <nav class="sticky-tabs" aria-label="產業頁籤">
-        ${tabs.map(([id, label]) => `<button class="tab-button ${tab === id ? "active" : ""}" data-industry-tab="${id}" type="button">${label}</button>`).join("")}
+      <nav class="sticky-tabs" role="tablist" aria-label="產業頁籤" data-tab-list>
+        ${tabs.map(([id, label]) => `<button id="industry-tab-${escapeHtml(id)}" class="tab-button ${tab === id ? "active" : ""}" role="tab" aria-selected="${tab === id ? "true" : "false"}" aria-controls="industry-panel-${escapeHtml(id)}" tabindex="${tab === id ? "0" : "-1"}" data-industry-tab="${escapeHtml(id)}" type="button">${label}</button>`).join("")}
       </nav>
       ${tab === "overview" ? renderIndustryOverview(state, industry) : ""}
       ${tab === "map" ? renderIndustryMap(state, industry) : ""}
@@ -48,7 +48,7 @@ export function renderIndustry(state, industry) {
 function renderIndustryOverview(state, industry) {
   const techIds = (technologyMenus[state.industryId] || []).slice(0, 6);
   return `
-    <section class="tab-panel active">
+    <section class="tab-panel active" id="industry-panel-overview" role="tabpanel" aria-labelledby="industry-tab-overview">
       <div class="overview-grid">
         <article class="card"><p class="eyebrow">Plain-language frame</p><h2>這個產業如何運作</h2><p class="muted">${escapeHtml(industry.hero)} 上游提供材料、設備或關鍵零組件；中游負責製造、封裝、測試或系統整合；下游需求決定採購節奏與外溢方向。</p>${confidenceBadge("good", "30 秒可讀")}</article>
         <article class="card"><p class="eyebrow">Research frame</p><h2>價值在哪裡被捕捉</h2><p class="muted">優先檢查純度、技術層級、客戶認證、替代供應商與瓶頸位置。高純度公司不一定更安全，仍需看客戶集中與 qualification risk。</p>${confidenceBadge("medium", "需交叉驗證")}</article>
@@ -76,7 +76,7 @@ function renderIndustryOverview(state, industry) {
 
 function renderIndustryMap(state, industry) {
   return `
-    <section class="tab-panel active">
+    <section class="tab-panel active" id="industry-panel-map" role="tabpanel" aria-labelledby="industry-tab-map">
       <section class="panel">
         <div class="panel-header"><div><p class="eyebrow">Full topology</p><h2>供應鏈拓撲圖</h2><p class="small">滑過節點看相鄰關係；點擊節點開啟公司抽屜。</p></div>${confidenceBadge("good", "關係完整")}</div>
         ${topologyBoard(industry, state.industryId)}
@@ -90,7 +90,7 @@ function renderIndustryLandscape(state, industry) {
   const rows = companyRows(ids, state.filters, state.industryId, state.api?.companyPrices || {}, state.api?.companySignals || {});
   const cardViewClass = state.companyView === "card" ? "card-view" : "";
   return `
-    <section class="tab-panel active landscape ${cardViewClass}">
+    <section class="tab-panel active landscape ${cardViewClass}" id="industry-panel-landscape" role="tabpanel" aria-labelledby="industry-tab-landscape">
       ${filterPanel(state)}
       <div class="data-table-wrap">
         <table>
@@ -107,7 +107,7 @@ function renderIndustryLandscape(state, industry) {
 function renderBottlenecks(state, industry) {
   const tech = selectedTechnology(state);
   return `
-    <section class="tab-panel active">
+    <section class="tab-panel active" id="industry-panel-bottlenecks" role="tabpanel" aria-labelledby="industry-tab-bottlenecks">
       <div class="scenario-grid">
         <article class="card">
           <p class="eyebrow">Scenario</p>
@@ -136,7 +136,7 @@ function renderBottlenecks(state, industry) {
 function renderIndustryTechnology(state, industry) {
   const ids = technologyMenus[state.industryId] || [];
   return `
-    <section class="tab-panel active">
+    <section class="tab-panel active" id="industry-panel-technology" role="tabpanel" aria-labelledby="industry-tab-technology">
       <article class="card">
         <div class="panel-header">
           <div><p class="eyebrow">Technology coverage</p><h2>${escapeHtml(industry.name)}相關技術</h2><p class="small">此頁保留產業視角的覆蓋卡片；完整選單、成熟曲線、瓶頸地圖與技術比較集中在「技術詳情」。</p></div>
@@ -194,7 +194,7 @@ function renderApiIndustryEvents(payload = {}) {
 function renderNews(state, industry) {
   const events = state.api?.industryEvents?.[state.industryId] || {};
   return `
-    <section class="tab-panel active">
+    <section class="tab-panel active" id="industry-panel-news" role="tabpanel" aria-labelledby="industry-tab-news">
       ${renderApiIndustryEvents(events)}
       <div class="news-grid overview-grid">
         <article class="card"><p class="eyebrow">News cards</p><h2>產業更新摘要</h2><p class="muted">此區用於匯入內容團隊整理的新聞、公告與產業事件，不產生投資建議。</p>${confidenceBadge("medium", "需來源")}</article>

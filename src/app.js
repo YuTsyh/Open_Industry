@@ -10,6 +10,7 @@ import {
   fetchNotes,
   fetchTechnologyAnnouncements
 } from "./api/client.js";
+import { nextRovingIndex } from "./components/a11y.js";
 import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "./components/searchSuggestions.js";
 import { displayCompany, escapeHtml, industryCompanyIds } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
@@ -386,6 +387,20 @@ function clearRelationshipInspector(graph) {
   }
 }
 
+function moveTabFocus(tab, key) {
+  const tabList = tab.closest("[data-tab-list]");
+  if (!tabList) return false;
+  const tabs = [...tabList.querySelectorAll('[role="tab"]')];
+  const currentIndex = tabs.indexOf(tab);
+  const nextIndex = nextRovingIndex(currentIndex, tabs.length, key);
+  if (nextIndex < 0 || nextIndex === currentIndex) return false;
+  tabs.forEach((item, index) => {
+    item.tabIndex = index === nextIndex ? 0 : -1;
+  });
+  tabs[nextIndex].focus();
+  return true;
+}
+
 function syncSearchCombobox() {
   const open = searchSuggestions.classList.contains("open");
   searchInput.setAttribute("aria-expanded", open ? "true" : "false");
@@ -556,6 +571,22 @@ document.addEventListener("mouseout", event => {
   if (node && !node.contains(event.relatedTarget)) clearNodeHighlight(node);
 });
 
+document.addEventListener("focusin", event => {
+  const relationNode = event.target.closest("[data-relation-node]");
+  if (relationNode) updateRelationshipInspector(relationNode);
+
+  const node = event.target.closest("[data-node-id]");
+  if (node) highlightNode(node);
+});
+
+document.addEventListener("focusout", event => {
+  const relationGraph = event.target.closest("[data-relationship-graph]");
+  if (relationGraph && !relationGraph.contains(event.relatedTarget)) clearRelationshipInspector(relationGraph);
+
+  const node = event.target.closest("[data-node-id]");
+  if (node && !node.contains(event.relatedTarget)) clearNodeHighlight(node);
+});
+
 document.addEventListener("change", event => {
   const filter = event.target.closest("[data-filter]");
   if (filter) {
@@ -607,6 +638,12 @@ document.querySelector("#themeToggle").addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", event => {
+  if (event.target.matches('[role="tab"]') && ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    moveTabFocus(event.target, event.key);
+    return;
+  }
+
   if (event.target === searchInput && ["ArrowDown", "ArrowUp"].includes(event.key)) {
     event.preventDefault();
     const hadMatches = searchMatches.length > 0;

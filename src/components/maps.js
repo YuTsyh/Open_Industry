@@ -63,7 +63,7 @@ export function topologyBoard(industry, industryId = "") {
 
 function relationNode({ label, kind, group, note, companyId = "" }) {
   return `
-    <button class="relation-node ${escapeHtml(kind)}" data-relation-node data-rel-group="${escapeHtml(group)}" data-rel-type="${escapeHtml(kind)}" data-rel-text="${escapeHtml(note)}" data-company-id="${escapeHtml(companyId)}" type="button">
+    <button class="relation-node ${escapeHtml(kind)}" data-relation-node data-rel-group="${escapeHtml(group)}" data-rel-type="${escapeHtml(kind)}" data-rel-text="${escapeHtml(note)}" data-company-id="${escapeHtml(companyId)}" type="button" aria-label="Focus relationship ${escapeHtml(kind)} ${escapeHtml(label)}">
       <span class="node-kind">${escapeHtml(kind)}</span>
       <strong>${escapeHtml(label)}</strong>
       <small>${companyId ? escapeHtml(displayCompany(companyId)) : escapeHtml(note)}</small>
@@ -134,14 +134,14 @@ export function relationshipGraph(company, companyId) {
         <span>Upstream</span><i></i><span>Company</span><i></i><span>Downstream</span>
       </div>
 
-      <div class="relationship-board" data-relationship-graph>
+      <div class="relationship-board" data-relationship-graph role="group" aria-label="Relationship graph for ${escapeHtml(centerLabel)}. Use Tab to focus nodes; press Enter to open linked company details.">
         <div class="relation-column">
           <span class="col-label">Suppliers / Alternatives</span>
           ${supplierNodes}
           ${alternativeNodes}
         </div>
 
-        <button class="relationship-center" data-relation-node data-rel-group="center" data-rel-type="center" data-company-id="${escapeHtml(companyId)}" data-rel-text="${escapeHtml(`${centerLabel}: ${exposure.label || "core exposure"} ${exposure.score}%. ${exposure.thesis || company.summary}`)}" type="button">
+        <button class="relationship-center" data-relation-node data-rel-group="center" data-rel-type="center" data-company-id="${escapeHtml(companyId)}" data-rel-text="${escapeHtml(`${centerLabel}: ${exposure.label || "core exposure"} ${exposure.score}%. ${exposure.thesis || company.summary}`)}" type="button" aria-label="Focus relationship center ${escapeHtml(centerLabel)}">
           ${marketBadge(company.market)}
           <strong>${escapeHtml(centerLabel)}</strong>
           <span>${company.roles.map(role => `<em>${escapeHtml(role)}</em>`).join("")}</span>

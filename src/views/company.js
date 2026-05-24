@@ -154,10 +154,10 @@ function renderCompanyTabs(company, activeTab, state) {
   ];
   return `
     <section class="company-tabs-block">
-      <nav class="sticky-tabs" aria-label="Company detail tabs">
-        ${tabs.map(([id, label]) => `<button class="tab-button ${normalizedTab === id ? "active" : ""}" data-company-tab="${id}" type="button">${label}</button>`).join("")}
+      <nav class="sticky-tabs" role="tablist" aria-label="Company detail tabs" data-tab-list>
+        ${tabs.map(([id, label]) => `<button id="company-tab-${escapeHtml(id)}" class="tab-button ${normalizedTab === id ? "active" : ""}" role="tab" aria-selected="${normalizedTab === id ? "true" : "false"}" aria-controls="company-panel-${escapeHtml(id)}" tabindex="${normalizedTab === id ? "0" : "-1"}" data-company-tab="${escapeHtml(id)}" type="button">${label}</button>`).join("")}
       </nav>
-      <div class="company-tab-panel">
+      <div class="company-tab-panel" id="company-panel-${escapeHtml(normalizedTab)}" role="tabpanel" aria-labelledby="company-tab-${escapeHtml(normalizedTab)}">
         ${normalizedTab === "role" ? renderRoleTab(company) : ""}
         ${normalizedTab === "capability" ? renderCapabilityTab(company) : ""}
         ${normalizedTab === "customers" ? renderNetworkTab(company) : ""}
