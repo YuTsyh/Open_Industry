@@ -319,7 +319,11 @@ function renderNewsTab(company, state = {}) {
   `;
 }
 
-function renderApiNotes(notesState = {}) {
+function collaboratorValue(collaborators = []) {
+  return collaborators.map(item => `${item.userId}:${item.role || "reader"}`).join(", ");
+}
+
+function renderApiNotes(notesState = {}, { currentUserId = "", companyId = "" } = {}) {
   const notes = notesState.items || [];
   if (notesState.status === "loading") {
     return `<div class="mini-row"><span>Loading notes from API...</span><span class="tag">pending</span></div>`;
@@ -335,6 +339,12 @@ function renderApiNotes(notesState = {}) {
       <span>
         <strong>${escapeHtml(note.title || "Untitled note")}</strong><br>
         <small>${escapeHtml(note.bodyMarkdown || "")}</small>
+        ${note.ownerUserId === currentUserId ? `
+          <span class="note-collaborator-editor">
+            <input class="notes-title" data-note-collaborator-editor type="text" value="${escapeHtml(collaboratorValue(note.collaborators || []))}" aria-label="Collaborator roles for ${escapeHtml(note.title || "Untitled note")}">
+            <button class="pill-button secondary" data-update-note-collaborators data-note-id="${escapeHtml(String(note.id))}" data-company-id="${escapeHtml(companyId)}" type="button">Update collaborators</button>
+          </span>
+        ` : ""}
       </span>
       <span class="tag">${escapeHtml(note.visibility || "private")}</span>
     </div>
@@ -351,7 +361,7 @@ function renderNotesTab(company, state = {}) {
     <article class="card">
       <p class="eyebrow">Research notes</p>
       <h2>Research notebook</h2>
-      <div class="mini-list api-notes-list">${renderApiNotes(notesState)}</div>
+      <div class="mini-list api-notes-list">${renderApiNotes(notesState, { currentUserId: api.userId || "", companyId })}</div>
       <div class="notes-form">
         <input class="notes-title" data-note-title type="text" placeholder="Note title">
         <textarea class="notes-area" data-note-body placeholder="Record ${escapeHtml(company.name)} exposure, price movement, supply-chain evidence and open questions..."></textarea>

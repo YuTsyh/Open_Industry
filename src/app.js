@@ -10,7 +10,8 @@ import {
   fetchIngestionStatus,
   fetchNews,
   fetchNotes,
-  fetchTechnologyAnnouncements
+  fetchTechnologyAnnouncements,
+  updateNote
 } from "./api/client.js";
 import { nextRovingIndex } from "./components/a11y.js";
 import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "./components/searchSuggestions.js";
@@ -395,6 +396,48 @@ async function saveCompanyNote(button) {
   if (shouldRenderApiRefresh(companyId)) render();
 }
 
+function parseCollaborators(value = "") {
+  return value
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => {
+      const [userId, role = "reader"] = item.split(":").map(part => part.trim());
+      return { userId, role: role === "editor" ? "editor" : "reader" };
+    })
+    .filter(item => item.userId);
+}
+
+async function updateNoteCollaborators(button) {
+  const companyId = button.dataset.companyId || state.companyId || "tsmc";
+  const noteId = button.dataset.noteId;
+  const row = button.closest(".api-note-row");
+  if (!state.api.enabled || !state.api.baseUrl || !state.api.token) {
+    state.api.notes[companyId] = { status: "error", error: "Configure API base URL and JWT token before updating collaborators.", items: state.api.notes[companyId]?.items || [] };
+    render();
+    return;
+  }
+
+  try {
+    const result = await updateNote({
+      baseUrl: state.api.baseUrl,
+      token: state.api.token,
+      noteId,
+      patch: {
+        collaborators: parseCollaborators(row?.querySelector("[data-note-collaborator-editor]")?.value || "")
+      }
+    });
+    const current = state.api.notes[companyId]?.items || [];
+    state.api.notes[companyId] = {
+      status: "ready",
+      items: current.map(note => String(note.id) === String(noteId) ? result.note : note)
+    };
+  } catch (error) {
+    state.api.notes[companyId] = { status: "error", error: error.message, items: state.api.notes[companyId]?.items || [] };
+  }
+  if (shouldRenderApiRefresh(companyId)) render();
+}
+
 function relationTextForNode(node) {
   const companyId = node.dataset.companyId;
   const company = companies[companyId];
@@ -533,6 +576,12 @@ document.addEventListener("click", event => {
   const saveNote = event.target.closest("[data-save-note]");
   if (saveNote) {
     saveCompanyNote(saveNote);
+    return;
+  }
+
+  const updateCollaborators = event.target.closest("[data-update-note-collaborators]");
+  if (updateCollaborators) {
+    updateNoteCollaborators(updateCollaborators);
     return;
   }
 

@@ -17,6 +17,17 @@ function authHeaders(token) {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
+function decodeJwtSubject(token = "") {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return "";
+    const base64 = payload.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    return JSON.parse(globalThis.atob(base64)).sub || "";
+  } catch {
+    return "";
+  }
+}
+
 async function readJson(response) {
   const body = await response.json();
   if (!response.ok) {
@@ -37,7 +48,8 @@ export function buildApiConfig({
   return {
     enabled: Boolean(baseUrl),
     baseUrl,
-    token
+    token,
+    userId: decodeJwtSubject(token)
   };
 }
 
@@ -154,6 +166,24 @@ export async function createNote({
       ...authHeaders(token)
     },
     body: JSON.stringify(note)
+  });
+  return readJson(response);
+}
+
+export async function updateNote({
+  baseUrl,
+  token,
+  noteId,
+  patch,
+  fetchImpl = globalThis.fetch
+}) {
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/notes/${encodeURIComponent(noteId)}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(patch)
   });
   return readJson(response);
 }

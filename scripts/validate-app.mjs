@@ -23,7 +23,8 @@ import {
   fetchIngestionStatus,
   fetchNews,
   fetchNotes,
-  fetchTechnologyAnnouncements
+  fetchTechnologyAnnouncements,
+  updateNote
 } from "../src/api/client.js";
 import {
   apiRoutes,
@@ -59,6 +60,12 @@ const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf
 const appCss = await readFile(new URL("../styles/app.css", import.meta.url), "utf8");
 const appJs = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 const schemaSql = await readFile(new URL("../server/schema.sql", import.meta.url), "utf8");
+
+function testJwt(payload) {
+  const encode = value => Buffer.from(JSON.stringify(value))
+    .toString("base64url");
+  return `${encode({ alg: "HS256", typ: "JWT" })}.${encode(payload)}.signature`;
+}
 
 function countMatches(text, pattern) {
   return (text.match(pattern) || []).length;
@@ -122,13 +129,14 @@ const apiConfig = buildApiConfig({
   locationSearch: "?api=http://127.0.0.1:8787",
   storage: {
     getItem(key) {
-      return key === "industrytopo.jwt" ? "local-token" : "";
+      return key === "industrytopo.jwt" ? testJwt({ sub: "analyst-1", email: "analyst@example.com" }) : "";
     }
   }
 });
 assert.equal(apiConfig.enabled, true, "frontend API config should enable API mode from query string");
 assert.equal(apiConfig.baseUrl, "http://127.0.0.1:8787", "frontend API config should keep base URL");
-assert.equal(apiConfig.token, "local-token", "frontend API config should read JWT token from localStorage");
+assert.ok(apiConfig.token, "frontend API config should read JWT token from localStorage");
+assert.equal(apiConfig.userId, "analyst-1", "frontend API config should expose JWT subject for owner-only note controls");
 
 const requestedApiCalls = [];
 const fetchImpl = async (url, options = {}) => {
@@ -243,6 +251,20 @@ const fetchImpl = async (url, options = {}) => {
       json: async () => ({ note: { id: 7, title: "CoWoS follow-up", visibility: "shared" } })
     };
   }
+  if (url.endsWith("/api/notes/7") && options.method === "PATCH") {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        note: {
+          id: 7,
+          title: "CoWoS follow-up",
+          visibility: "shared",
+          collaborators: [{ userId: "analyst-2", role: "editor" }]
+        }
+      })
+    };
+  }
   if (url.includes("/api/live/filings")) {
     return {
       ok: true,
@@ -312,8 +334,28 @@ const createdNote = await createNote({
 });
 assert.equal(createdNote.note.visibility, "shared", "frontend API client should create shared markdown notes");
 assert.ok(
-  requestedApiCalls.some(call => call.options.headers?.authorization === "Bearer local-token"),
+  requestedApiCalls.some(call => call.options.headers?.authorization === `Bearer ${apiConfig.token}`),
   "frontend API client should send JWT bearer token to notes endpoints"
+);
+
+const updatedNote = await updateNote({
+  baseUrl: apiConfig.baseUrl,
+  token: apiConfig.token,
+  noteId: 7,
+  patch: {
+    collaborators: [{ userId: "analyst-2", role: "editor" }]
+  },
+  fetchImpl
+});
+assert.equal(updatedNote.note.collaborators[0].role, "editor", "frontend API client should update note collaborators");
+assert.ok(
+  requestedApiCalls.some(call =>
+    call.url.endsWith("/api/notes/7") &&
+    call.options.method === "PATCH" &&
+    call.options.headers?.authorization === `Bearer ${apiConfig.token}` &&
+    JSON.parse(call.options.body).collaborators[0].role === "editor"
+  ),
+  "frontend API client should PATCH collaborator role changes with JWT auth"
 );
 
 const filingsPayload = await fetchFilings({ baseUrl: apiConfig.baseUrl, industryId: "advanced-packaging", fetchImpl });
@@ -800,6 +842,7 @@ const apiCompanyHtml = renderRoute({
   companyTab: "notes",
   api: {
     enabled: true,
+    userId: "analyst-1",
     companyLive: {
       tsmc: {
         feedStatuses: [
@@ -813,7 +856,14 @@ const apiCompanyHtml = renderRoute({
       tsmc: {
         status: "ready",
         items: [
-          { id: 7, title: "CoWoS follow-up", bodyMarkdown: "- Check capacity", visibility: "shared" }
+          {
+            id: 7,
+            ownerUserId: "analyst-1",
+            title: "CoWoS follow-up",
+            bodyMarkdown: "- Check capacity",
+            visibility: "shared",
+            collaborators: [{ userId: "analyst-2", role: "reader" }]
+          }
         ]
       }
     }
@@ -823,11 +873,51 @@ assert.ok(apiCompanyHtml.includes("api-live-status"), "company detail should ren
 assert.ok(apiCompanyHtml.includes("TWSE delayed") && apiCompanyHtml.includes("provider-ready"), "company API status should show providers and statuses");
 assert.ok(apiCompanyHtml.includes("note-visibility") && apiCompanyHtml.includes("data-save-note"), "notes tab should expose visibility and save controls");
 assert.ok(apiCompanyHtml.includes("data-note-collaborators"), "notes tab should expose collaborator controls for shared research notes");
+assert.ok(apiCompanyHtml.includes("data-update-note-collaborators"), "owner notes should expose collaborator update controls");
+assert.ok(apiCompanyHtml.includes("analyst-2:reader"), "owner collaborator controls should prefill current collaborator roles");
+assert.ok(
+  appCss.includes(".note-collaborator-editor") && appCss.includes("max-width: 560px"),
+  "collaborator role editor should have a scoped width guard"
+);
 assert.ok(apiCompanyHtml.includes("CoWoS follow-up"), "notes tab should render API notes");
 assert.ok(
   appJs.includes("[data-note-collaborators]") && appJs.includes("collaborators"),
   "save note handler should include collaborator ids in API note payloads"
 );
+assert.ok(
+  appJs.includes("[data-update-note-collaborators]") && appJs.includes("updateNote"),
+  "app click handler should update collaborator roles from owner note controls"
+);
+assert.ok(
+  appJs.includes('closest(".api-note-row")'),
+  "collaborator updates should read the editor input from the note row, not the clicked button"
+);
+
+const apiReaderNotesHtml = renderRoute({
+  ...requiredState,
+  route: "company",
+  companyTab: "notes",
+  api: {
+    enabled: true,
+    userId: "analyst-2",
+    notes: {
+      tsmc: {
+        status: "ready",
+        items: [
+          {
+            id: 7,
+            ownerUserId: "analyst-1",
+            title: "CoWoS follow-up",
+            bodyMarkdown: "- Check capacity",
+            visibility: "shared",
+            collaborators: [{ userId: "analyst-2", role: "reader" }]
+          }
+        ]
+      }
+    }
+  }
+});
+assert.ok(!apiReaderNotesHtml.includes("data-update-note-collaborators"), "non-owner notes should not expose collaborator update controls");
 
 const apiCompanyNewsHtml = renderRoute({
   ...requiredState,
