@@ -130,8 +130,8 @@ export const apiRoutes = [
     path: "/api/ingestion/status",
     auth: "optional",
     backingTables: ["feed_statuses", "ingestion_runs"],
-    responseFields: ["summary", "alerts", "feedStatuses", "recentRuns"],
-    dataPolicy: "Expose provider readiness, skipped licensed feeds, and recent run health without leaking API keys or fetching data from the browser."
+    responseFields: ["summary", "summary.providersRateLimited", "alerts", "alerts.code", "alerts.action", "feedStatuses", "recentRuns"],
+    dataPolicy: "Expose provider readiness, skipped licensed feeds, failed runs, rate-limit alerts, and recent run health without leaking API keys or fetching data from the browser."
   },
   {
     id: "notes-list",

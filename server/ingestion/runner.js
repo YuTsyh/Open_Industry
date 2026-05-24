@@ -98,6 +98,51 @@ export async function runIngestionDryRun({
   return { ...state, runs };
 }
 
+function isRateLimitRun(run) {
+  const message = `${run.errorMessage || ""} ${run.status || ""}`.toLowerCase();
+  return /\b429\b|rate[- ]?limit|too many requests/.test(message);
+}
+
+function alertForRun(run) {
+  if (run.status === "skipped" && run.missingSecrets?.length) {
+    return {
+      level: "warning",
+      code: "missing-secret",
+      providerId: run.providerId,
+      provider: run.provider,
+      feedType: run.feedType,
+      message: `${run.provider} skipped because ${run.missingSecrets.join(", ")} is not configured`,
+      action: `Configure ${run.missingSecrets.join(", ")} or keep this licensed feed marked not-available.`
+    };
+  }
+
+  if (isRateLimitRun(run)) {
+    return {
+      level: "warning",
+      code: "rate-limit",
+      providerId: run.providerId,
+      provider: run.provider,
+      feedType: run.feedType,
+      message: run.errorMessage || `${run.provider} hit a rate limit`,
+      action: "Apply provider-specific backoff, reduce batch size, and retry after the vendor reset window."
+    };
+  }
+
+  if (run.status === "failed") {
+    return {
+      level: "error",
+      code: "ingestion-failed",
+      providerId: run.providerId,
+      provider: run.provider,
+      feedType: run.feedType,
+      message: run.errorMessage || `${run.provider} failed`,
+      action: "Inspect the ingestion run log, verify source contract changes, and rerun the provider after fixing the adapter."
+    };
+  }
+
+  return null;
+}
+
 export function summarizeIngestionState(state = emptyState()) {
   const runs = state.ingestionRuns || [];
   const latestByProvider = new Map();
@@ -110,32 +155,15 @@ export function summarizeIngestionState(state = emptyState()) {
   const providersSucceeded = latestRuns.filter(run => run.status === "succeeded").length;
   const providersSkipped = latestRuns.filter(run => run.status === "skipped").length;
   const providersFailed = latestRuns.filter(run => run.status === "failed").length;
-  const alerts = [];
-
-  for (const run of latestRuns) {
-    if (run.status === "skipped" && run.missingSecrets?.length) {
-      alerts.push({
-        level: "warning",
-        providerId: run.providerId,
-        feedType: run.feedType,
-        message: `${run.provider} skipped because ${run.missingSecrets.join(", ")} is not configured`
-      });
-    }
-    if (run.status === "failed") {
-      alerts.push({
-        level: "error",
-        providerId: run.providerId,
-        feedType: run.feedType,
-        message: run.errorMessage || `${run.provider} failed`
-      });
-    }
-  }
+  const providersRateLimited = latestRuns.filter(isRateLimitRun).length;
+  const alerts = latestRuns.map(alertForRun).filter(Boolean);
 
   return {
     providersTotal,
     providersSucceeded,
     providersSkipped,
     providersFailed,
+    providersRateLimited,
     latestRunAt: latestRuns[0]?.finishedAt || null,
     alerts
   };

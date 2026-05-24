@@ -56,6 +56,49 @@ try {
   assert.ok(summary.providersSkipped > 0, "summary should surface skipped providers");
   assert.ok(summary.alerts.some(alert => alert.level === "warning"), "summary should create warning alerts for skipped licensed providers");
 
+  const failedState = {
+    feedStatuses: [],
+    ingestionRuns: [
+      {
+        providerId: "sec-edgar-filings",
+        provider: "SEC EDGAR",
+        feedType: "filings",
+        status: "failed",
+        startedAt: "2026-05-23T01:00:00.000Z",
+        finishedAt: "2026-05-23T01:00:10.000Z",
+        errorMessage: "HTTP 429 rate limit exceeded"
+      },
+      {
+        providerId: "technology-official-announcements",
+        provider: "Official company technology sources",
+        feedType: "technology_announcements",
+        status: "failed",
+        startedAt: "2026-05-23T01:02:00.000Z",
+        finishedAt: "2026-05-23T01:02:05.000Z",
+        errorMessage: "Source parser failed"
+      }
+    ]
+  };
+  const failedSummary = summarizeIngestionState(failedState);
+  assert.equal(failedSummary.providersFailed, 2, "summary should count failed ingestion providers");
+  assert.equal(failedSummary.providersRateLimited, 1, "summary should count rate-limited ingestion providers");
+  assert.ok(
+    failedSummary.alerts.some(alert =>
+      alert.code === "rate-limit" &&
+      alert.providerId === "sec-edgar-filings" &&
+      alert.action.includes("backoff")
+    ),
+    "summary should create actionable rate-limit alerts"
+  );
+  assert.ok(
+    failedSummary.alerts.some(alert =>
+      alert.code === "ingestion-failed" &&
+      alert.level === "error" &&
+      alert.providerId === "technology-official-announcements"
+    ),
+    "summary should create actionable failure alerts"
+  );
+
   const server = createApiServer({ ingestionStateFile: stateFile });
   const port = await listen(server);
   try {
@@ -65,6 +108,7 @@ try {
     assert.ok(Array.isArray(body.feedStatuses) && body.feedStatuses.length > 0, "API should expose feed statuses");
     assert.ok(Array.isArray(body.recentRuns) && body.recentRuns.length > 0, "API should expose recent ingestion runs");
     assert.ok(body.alerts.some(alert => alert.level === "warning"), "API should expose monitoring alerts");
+    assert.ok(body.alerts.every(alert => alert.code && alert.action), "API monitoring alerts should include code and action metadata");
   } finally {
     await close(server);
   }
