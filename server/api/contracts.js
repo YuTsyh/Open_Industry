@@ -140,7 +140,7 @@ export const apiRoutes = [
     auth: "jwt",
     queryParams: ["entityType", "entityId"],
     backingTables: ["notes", "note_collaborators", "users"],
-    responseFields: ["items"],
+    responseFields: ["items", "items.collaborators"],
     dataPolicy: "Return private notes only to owners and shared notes only to authorized collaborators."
   },
   {
@@ -149,8 +149,8 @@ export const apiRoutes = [
     path: "/api/notes",
     auth: "jwt",
     backingTables: ["notes", "note_collaborators", "users"],
-    responseFields: ["note"],
-    dataPolicy: "Persist markdown notes with owner, entity type, entity id, and private/shared visibility."
+    responseFields: ["note", "note.collaborators"],
+    dataPolicy: "Persist markdown notes with owner, entity type, entity id, private/shared visibility, and collaborator roles."
   },
   {
     id: "notes-update",
@@ -158,8 +158,8 @@ export const apiRoutes = [
     path: "/api/notes/:noteId",
     auth: "jwt",
     backingTables: ["notes", "note_collaborators", "users"],
-    responseFields: ["note"],
-    dataPolicy: "Only note owners and editor collaborators may update markdown body, title, or visibility."
+    responseFields: ["note", "note.collaborators"],
+    dataPolicy: "Only note owners and editor collaborators may update markdown body, title, or visibility; only owners may change collaborator roles."
   }
 ];
 

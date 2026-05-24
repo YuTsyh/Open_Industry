@@ -373,12 +373,19 @@ async function saveCompanyNote(button) {
   const title = card?.querySelector("[data-note-title]")?.value?.trim() || "Untitled note";
   const bodyMarkdown = card?.querySelector("[data-note-body]")?.value || "";
   const visibility = card?.querySelector("[data-note-visibility]")?.value || "private";
+  const collaboratorIds = (card?.querySelector("[data-note-collaborators]")?.value || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+  const collaborators = visibility === "shared"
+    ? collaboratorIds.map(userId => ({ userId, role: "reader" }))
+    : [];
 
   try {
     const result = await createNote({
       baseUrl: state.api.baseUrl,
       token: state.api.token,
-      note: { entityType: "company", entityId: companyId, title, bodyMarkdown, visibility }
+      note: { entityType: "company", entityId: companyId, title, bodyMarkdown, visibility, collaborators }
     });
     const current = state.api.notes[companyId]?.items || [];
     state.api.notes[companyId] = { status: "ready", items: [result.note, ...current] };

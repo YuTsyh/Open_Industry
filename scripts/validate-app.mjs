@@ -57,6 +57,7 @@ const requiredState = {
 
 const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const appCss = await readFile(new URL("../styles/app.css", import.meta.url), "utf8");
+const appJs = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 const schemaSql = await readFile(new URL("../server/schema.sql", import.meta.url), "utf8");
 
 function countMatches(text, pattern) {
@@ -99,6 +100,19 @@ for (const route of apiRoutes) {
     assert.equal(route.auth, "jwt", `${route.id} should require JWT auth`);
   }
 }
+
+assert.ok(
+  apiRoutes.find(route => route.id === "notes-list")?.responseFields.includes("items.collaborators"),
+  "notes list contract should expose collaborator metadata"
+);
+assert.ok(
+  apiRoutes.find(route => route.id === "notes-create")?.responseFields.includes("note.collaborators"),
+  "notes create contract should expose collaborator metadata"
+);
+assert.ok(
+  apiRoutes.find(route => route.id === "notes-update")?.responseFields.includes("note.collaborators"),
+  "notes update contract should expose collaborator metadata"
+);
 
 assert.ok(liveFeedStatuses.includes("delayed"), "live feed statuses should include delayed");
 assert.ok(liveFeedStatuses.includes("not-available"), "live feed statuses should include not-available");
@@ -808,7 +822,12 @@ const apiCompanyHtml = renderRoute({
 assert.ok(apiCompanyHtml.includes("api-live-status"), "company detail should render API provider statuses when available");
 assert.ok(apiCompanyHtml.includes("TWSE delayed") && apiCompanyHtml.includes("provider-ready"), "company API status should show providers and statuses");
 assert.ok(apiCompanyHtml.includes("note-visibility") && apiCompanyHtml.includes("data-save-note"), "notes tab should expose visibility and save controls");
+assert.ok(apiCompanyHtml.includes("data-note-collaborators"), "notes tab should expose collaborator controls for shared research notes");
 assert.ok(apiCompanyHtml.includes("CoWoS follow-up"), "notes tab should render API notes");
+assert.ok(
+  appJs.includes("[data-note-collaborators]") && appJs.includes("collaborators"),
+  "save note handler should include collaborator ids in API note payloads"
+);
 
 const apiCompanyNewsHtml = renderRoute({
   ...requiredState,

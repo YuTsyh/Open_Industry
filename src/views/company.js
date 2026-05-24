@@ -355,6 +355,7 @@ function renderNotesTab(company, state = {}) {
       <div class="notes-form">
         <input class="notes-title" data-note-title type="text" placeholder="Note title">
         <textarea class="notes-area" data-note-body placeholder="Record ${escapeHtml(company.name)} exposure, price movement, supply-chain evidence and open questions..."></textarea>
+        <input class="notes-title" data-note-collaborators type="text" placeholder="Collaborator user ids, comma-separated">
         <div class="note-actions">
           <label class="field note-visibility">
             <span>Visibility</span>

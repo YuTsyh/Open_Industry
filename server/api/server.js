@@ -20,6 +20,7 @@ import {
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
 const NOTE_ENTITY_TYPES = new Set(["company", "industry", "technology"]);
 const NOTE_VISIBILITIES = new Set(["private", "shared"]);
+const NOTE_COLLABORATOR_ROLES = new Set(["reader", "editor"]);
 
 function base64Url(input) {
   return Buffer.from(input)
@@ -328,6 +329,49 @@ function requireAuth(request, jwtSecret) {
   return verifyJwt(token, jwtSecret);
 }
 
+function normalizeCollaborators(collaborators = [], ownerUserId) {
+  if (collaborators == null) return [];
+  if (!Array.isArray(collaborators)) throw new Error("collaborators must be an array");
+
+  const normalized = [];
+  const seen = new Set();
+  for (const item of collaborators) {
+    const userId = typeof item === "string" ? item : item?.userId;
+    const role = typeof item === "string" ? "reader" : item?.role || "reader";
+    if (!userId || userId === ownerUserId || seen.has(userId)) continue;
+    if (!NOTE_COLLABORATOR_ROLES.has(role)) throw new Error("invalid collaborator role");
+    seen.add(userId);
+    normalized.push({ userId, role });
+  }
+  return normalized;
+}
+
+function noteCollaborators(note) {
+  return normalizeCollaborators(note.collaborators || [], note.ownerUserId);
+}
+
+function collaboratorFor(note, user) {
+  return noteCollaborators(note).find(item => item.userId === user.sub) || null;
+}
+
+function canReadNote(note, user) {
+  if (note.ownerUserId === user.sub) return true;
+  return note.visibility === "shared" && Boolean(collaboratorFor(note, user));
+}
+
+function canEditNote(note, user) {
+  if (note.ownerUserId === user.sub) return true;
+  const collaborator = collaboratorFor(note, user);
+  return note.visibility === "shared" && collaborator?.role === "editor";
+}
+
+function publicNote(note) {
+  return {
+    ...note,
+    collaborators: noteCollaborators(note)
+  };
+}
+
 function normalizeNote(raw, user) {
   const entityType = raw.entityType;
   const visibility = raw.visibility || "private";
@@ -345,6 +389,7 @@ function normalizeNote(raw, user) {
     title: raw.title || "",
     bodyMarkdown: raw.bodyMarkdown || "",
     visibility,
+    collaborators: normalizeCollaborators(raw.collaborators || [], user.sub),
     createdAt: now,
     updatedAt: now
   };
@@ -367,11 +412,12 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
   if (request.method === "GET" && url.pathname === "/api/notes") {
     const entityType = url.searchParams.get("entityType");
     const entityId = url.searchParams.get("entityId");
-    const items = data.notes.filter(note => {
-      const visible = note.ownerUserId === user.sub || note.visibility === "shared";
-      const matchesEntity = (!entityType || note.entityType === entityType) && (!entityId || note.entityId === entityId);
-      return visible && matchesEntity;
-    });
+    const items = data.notes
+      .filter(note => {
+        const matchesEntity = (!entityType || note.entityType === entityType) && (!entityId || note.entityId === entityId);
+        return matchesEntity && canReadNote(note, user);
+      })
+      .map(publicNote);
     return sendJson(response, 200, { items });
   }
 
@@ -382,7 +428,7 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
       data.nextId += 1;
       data.notes.push(note);
       await saveNotes(notesFile, data);
-      return sendJson(response, 201, { note });
+      return sendJson(response, 201, { note: publicNote(note) });
     } catch (error) {
       return routeError(response, 400, error.message);
     }
@@ -392,7 +438,7 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
   if (request.method === "PATCH" && patchMatch) {
     const note = data.notes.find(item => item.id === Number(patchMatch[1]));
     if (!note) return routeError(response, 404, "note not found");
-    if (note.ownerUserId !== user.sub) return routeError(response, 403, "note owner is required");
+    if (!canEditNote(note, user)) return routeError(response, 403, "note editor access is required");
 
     const body = await readJsonBody(request);
     if (body.title != null) note.title = body.title;
@@ -401,9 +447,13 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
       if (!NOTE_VISIBILITIES.has(body.visibility)) return routeError(response, 400, "invalid visibility");
       note.visibility = body.visibility;
     }
+    if (body.collaborators != null) {
+      if (note.ownerUserId !== user.sub) return routeError(response, 403, "note owner is required to update collaborators");
+      note.collaborators = normalizeCollaborators(body.collaborators, note.ownerUserId);
+    }
     note.updatedAt = new Date().toISOString();
     await saveNotes(notesFile, data);
-    return sendJson(response, 200, { note });
+    return sendJson(response, 200, { note: publicNote(note) });
   }
 
   return routeError(response, 404, "notes route not found");
