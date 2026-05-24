@@ -182,11 +182,21 @@ export function matchingSearchItems(state, query, limit = 8) {
     .slice(0, limit);
 }
 
-export function searchSuggestionButton(item) {
+export function nextSearchIndex(currentIndex, count, key) {
+  if (!count) return -1;
+  if (key === "ArrowDown") return currentIndex < 0 ? 0 : (currentIndex + 1) % count;
+  if (key === "ArrowUp") return currentIndex < 0 ? count - 1 : (currentIndex - 1 + count) % count;
+  return currentIndex;
+}
+
+export function searchSuggestionButton(item, { index = -1, active = false } = {}) {
+  const id = index >= 0 ? `search-suggestion-${index}` : "";
   return `
     <button
+      ${id ? `id="${escapeHtml(id)}"` : ""}
       class="suggestion"
       role="option"
+      aria-selected="${active ? "true" : "false"}"
       data-search-kind="${escapeHtml(item.kind || "")}"
       data-search-route="${escapeHtml(item.route || "")}"
       data-search-industry="${escapeHtml(item.industryId || "")}"
@@ -194,6 +204,8 @@ export function searchSuggestionButton(item) {
       data-search-company="${escapeHtml(item.companyId || "")}"
       data-search-company-tab="${escapeHtml(item.companyTab || "")}"
       data-search-tech="${escapeHtml(item.techId || "")}"
+      data-search-index="${escapeHtml(index)}"
+      tabindex="-1"
       type="button"
     >
       <span>${escapeHtml(item.label)}</span>

@@ -83,7 +83,8 @@ strong { font-weight: 750; }
   padding: 10px 12px;
   text-align: left;
 }
-.suggestion:hover { background: var(--surface-soft); }
+.suggestion:hover, .suggestion[aria-selected="true"] { background: var(--surface-soft); }
+.suggestion[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--blue); }
 
 .top-actions { display: inline-flex; gap: 8px; align-items: center; }
 .route-nav {

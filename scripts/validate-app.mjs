@@ -8,7 +8,7 @@ import {
   technologyStepExplainer
 } from "../src/components/technologyDetails.js";
 import { officialTechnologySources } from "../src/components/officialEvidence.js";
-import { matchingSearchItems, searchSuggestionButton } from "../src/components/searchSuggestions.js";
+import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "../src/components/searchSuggestions.js";
 import { buildLiveHeatmapRows } from "../src/domain/heatmapMetrics.js";
 import { renderRoute } from "../src/views/index.js";
 import {
@@ -310,6 +310,17 @@ assert.ok(
   searchSuggestionButton(apiSearchMatches[0]).includes('data-search-kind="technology-announcement"'),
   "search suggestion buttons should expose stable search item kind metadata"
 );
+const activeSuggestionHtml = searchSuggestionButton(apiSearchMatches[0], { index: 0, active: true });
+assert.ok(
+  activeSuggestionHtml.includes('id="search-suggestion-0"') &&
+    activeSuggestionHtml.includes('aria-selected="true"') &&
+    activeSuggestionHtml.includes('data-search-index="0"'),
+  "active search suggestions should expose option id, selected state and stable index"
+);
+assert.equal(nextSearchIndex(-1, 3, "ArrowDown"), 0, "ArrowDown should move from no active option to the first suggestion");
+assert.equal(nextSearchIndex(0, 3, "ArrowDown"), 1, "ArrowDown should move to the next suggestion");
+assert.equal(nextSearchIndex(0, 3, "ArrowUp"), 2, "ArrowUp should wrap from first suggestion to last");
+assert.equal(nextSearchIndex(2, 3, "ArrowDown"), 0, "ArrowDown should wrap from last suggestion to first");
 
 for (const contract of ingestionProviderContracts) {
   assert.ok(contract.id, "ingestion provider contract should include id");
@@ -561,6 +572,12 @@ assert.ok(
 assert.ok(
   indexHtml.includes('rel="icon"'),
   "app shell should declare a favicon to avoid a browser console 404"
+);
+assert.ok(
+  indexHtml.includes('role="combobox"') &&
+    indexHtml.includes('aria-controls="searchSuggestions"') &&
+    indexHtml.includes('aria-expanded="false"'),
+  "global search input should expose combobox ARIA wiring"
 );
 assert.ok(
   appCss.includes(".summary-title .muted") &&

@@ -10,7 +10,7 @@ import {
   fetchNotes,
   fetchTechnologyAnnouncements
 } from "./api/client.js";
-import { matchingSearchItems, searchSuggestionButton } from "./components/searchSuggestions.js";
+import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "./components/searchSuggestions.js";
 import { displayCompany, escapeHtml, industryCompanyIds } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
 
@@ -53,6 +53,9 @@ const state = {
     pending: {}
   }
 };
+
+let searchMatches = [];
+let activeSearchIndex = -1;
 
 function syncTechnologyForIndustry() {
   const techIds = technologyMenus[state.industryId] || technologyMenus[defaultIndustry];
@@ -383,18 +386,51 @@ function clearRelationshipInspector(graph) {
   }
 }
 
-function renderSuggestions(value) {
+function syncSearchCombobox() {
+  const open = searchSuggestions.classList.contains("open");
+  searchInput.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open && activeSearchIndex >= 0 && searchMatches[activeSearchIndex]) {
+    searchInput.setAttribute("aria-activedescendant", `search-suggestion-${activeSearchIndex}`);
+  } else {
+    searchInput.removeAttribute("aria-activedescendant");
+  }
+}
+
+function closeSearchSuggestions() {
+  searchMatches = [];
+  activeSearchIndex = -1;
+  searchSuggestions.classList.remove("open");
+  searchSuggestions.innerHTML = "";
+  syncSearchCombobox();
+}
+
+function renderSuggestions(value, requestedActiveIndex = 0) {
   const query = value.trim().toLowerCase();
   if (!query) {
-    searchSuggestions.classList.remove("open");
-    searchSuggestions.innerHTML = "";
+    closeSearchSuggestions();
     return;
   }
-  const matches = matchingSearchItems(state, query);
-  searchSuggestions.innerHTML = matches.length
-    ? matches.map(searchSuggestionButton).join("")
+  searchMatches = matchingSearchItems(state, query);
+  activeSearchIndex = searchMatches.length
+    ? Math.max(0, Math.min(requestedActiveIndex, searchMatches.length - 1))
+    : -1;
+  searchSuggestions.innerHTML = searchMatches.length
+    ? searchMatches.map((item, index) => searchSuggestionButton(item, { index, active: index === activeSearchIndex })).join("")
     : `<div class="suggestion"><span>沒有符合的資料</span><span class="tag">Empty</span></div>`;
   searchSuggestions.classList.add("open");
+  syncSearchCombobox();
+}
+
+function selectSearchSuggestion(suggestion) {
+  if (!suggestion) return;
+  if (suggestion.dataset.searchIndustry) setIndustry(suggestion.dataset.searchIndustry);
+  if (suggestion.dataset.searchCompany) state.companyId = suggestion.dataset.searchCompany;
+  if (suggestion.dataset.searchTech) state.techId = suggestion.dataset.searchTech;
+  if (suggestion.dataset.searchIndustryTab) state.industryTab = suggestion.dataset.searchIndustryTab;
+  if (suggestion.dataset.searchCompanyTab) state.companyTab = suggestion.dataset.searchCompanyTab;
+  searchInput.value = "";
+  closeSearchSuggestions();
+  setRoute(suggestion.dataset.searchRoute);
 }
 
 document.addEventListener("click", event => {
@@ -412,14 +448,7 @@ document.addEventListener("click", event => {
 
   const suggestion = event.target.closest("[data-search-route]");
   if (suggestion) {
-    if (suggestion.dataset.searchIndustry) setIndustry(suggestion.dataset.searchIndustry);
-    if (suggestion.dataset.searchCompany) state.companyId = suggestion.dataset.searchCompany;
-    if (suggestion.dataset.searchTech) state.techId = suggestion.dataset.searchTech;
-    if (suggestion.dataset.searchIndustryTab) state.industryTab = suggestion.dataset.searchIndustryTab;
-    if (suggestion.dataset.searchCompanyTab) state.companyTab = suggestion.dataset.searchCompanyTab;
-    searchInput.value = "";
-    searchSuggestions.classList.remove("open");
-    setRoute(suggestion.dataset.searchRoute);
+    selectSearchSuggestion(suggestion);
     return;
   }
 
@@ -578,7 +607,28 @@ document.querySelector("#themeToggle").addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape") closeDrawer();
+  if (event.target === searchInput && ["ArrowDown", "ArrowUp"].includes(event.key)) {
+    event.preventDefault();
+    const hadMatches = searchMatches.length > 0;
+    if (!hadMatches) renderSuggestions(searchInput.value);
+    activeSearchIndex = nextSearchIndex(hadMatches ? activeSearchIndex : -1, searchMatches.length, event.key);
+    renderSuggestions(searchInput.value, activeSearchIndex);
+    return;
+  }
+
+  if (event.target === searchInput && event.key === "Enter" && activeSearchIndex >= 0) {
+    event.preventDefault();
+    selectSearchSuggestion(searchSuggestions.querySelector(`[data-search-index="${activeSearchIndex}"]`));
+    return;
+  }
+
+  if (event.key === "Escape") {
+    if (event.target === searchInput && searchSuggestions.classList.contains("open")) {
+      closeSearchSuggestions();
+      return;
+    }
+    closeDrawer();
+  }
 });
 
 render();
