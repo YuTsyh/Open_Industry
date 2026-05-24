@@ -374,12 +374,8 @@ async function saveCompanyNote(button) {
   const title = card?.querySelector("[data-note-title]")?.value?.trim() || "Untitled note";
   const bodyMarkdown = card?.querySelector("[data-note-body]")?.value || "";
   const visibility = card?.querySelector("[data-note-visibility]")?.value || "private";
-  const collaboratorIds = (card?.querySelector("[data-note-collaborators]")?.value || "")
-    .split(",")
-    .map(item => item.trim())
-    .filter(Boolean);
   const collaborators = visibility === "shared"
-    ? collaboratorIds.map(userId => ({ userId, role: "reader" }))
+    ? parseCollaborators(card?.querySelector("[data-note-collaborators]")?.value || "")
     : [];
 
   try {

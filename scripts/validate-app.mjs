@@ -885,6 +885,14 @@ assert.ok(
   "save note handler should include collaborator ids in API note payloads"
 );
 assert.ok(
+  appJs.includes('parseCollaborators(card?.querySelector("[data-note-collaborators]")?.value || "")'),
+  "save note handler should preserve collaborator reader/editor roles from the create form"
+);
+assert.ok(
+  apiCompanyHtml.includes("user:reader, teammate:editor"),
+  "notes collaborator create field should show the accepted user:role format"
+);
+assert.ok(
   appJs.includes("[data-update-note-collaborators]") && appJs.includes("updateNote"),
   "app click handler should update collaborator roles from owner note controls"
 );
