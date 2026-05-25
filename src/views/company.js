@@ -280,7 +280,10 @@ function renderMeetingPanel(meetings = [], providerStatuses = []) {
 
 function renderOptionsPanel(optionsPayload = {}) {
   const chain = optionsPayload.chain || optionsPayload.items || [];
+  const availability = optionsPayload.availability || {};
   const providerStatuses = optionsPayload.providerStatuses || [];
+  const availabilityStatus = availability.status || "provider-ready";
+  const licenseBoundary = availability.licenseBoundary || "Options data must come from OCC, Cboe, or a licensed vendor through the backend API.";
   return `
     <article class="card options-chain-panel">
       <p class="eyebrow">Options Chain</p>
@@ -294,12 +297,21 @@ function renderOptionsPanel(optionsPayload = {}) {
             </span>
             <span class="tag">${escapeHtml(item.provider || item.status || "licensed")}</span>
           </div>
-        `).join("") : `<div class="mini-row"><span>No licensed options chain loaded yet.</span><span class="tag">provider-ready</span></div>`}
+        `).join("") : `<div class="mini-row"><span>No licensed options chain loaded yet.</span><span class="tag">${escapeHtml(availabilityStatus)}</span></div>`}
       </div>
+      ${availability.reason ? `
+        <div class="mini-row">
+          <span>
+            <strong>${escapeHtml(availabilityStatus)}</strong><br>
+            <small>${escapeHtml(availability.reason)}</small>
+          </span>
+          <span class="tag">${escapeHtml(availability.market || optionsPayload.underlying?.market || "options")}</span>
+        </div>
+      ` : ""}
       <div class="source-row">
         ${providerStatuses.length ? providerStatuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "options")} - ${escapeHtml(item.status || "provider-ready")}</span>`).join("") : `<span class="tag">licensed vendor required</span>`}
       </div>
-      <p class="small">Options data must come from OCC, Cboe, or a licensed vendor through the backend API.</p>
+      <p class="small">${escapeHtml(licenseBoundary)}</p>
     </article>
   `;
 }

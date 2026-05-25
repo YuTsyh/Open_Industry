@@ -1064,6 +1064,11 @@ const apiCompanyNewsHtml = renderRoute({
       tsmc: {
         underlying: { companyId: "tsmc", ticker: "2330.TW", market: "TW" },
         chain: [],
+        availability: {
+          status: "not-available",
+          reason: "Listed options coverage is not available for this company in the configured provider set.",
+          licenseBoundary: "Options chain, open interest, volume, and greeks must come from OCC, Cboe, or another licensed vendor through backend ingestion."
+        },
         providerStatuses: [{ feedType: "options", provider: "Cboe/OCC licensed options slot", status: "provider-ready" }]
       }
     }
@@ -1076,6 +1081,9 @@ assert.ok(apiCompanyNewsHtml.includes("CoWoS capacity update") && apiCompanyNews
 assert.ok(apiCompanyNewsHtml.includes("https://example.com/transcript"), "meeting transcript panel should keep transcript links separate from source cards");
 assert.ok(apiCompanyNewsHtml.includes("licensed transcript provider") && apiCompanyNewsHtml.includes("provider-ready"), "meeting transcript panel should show provider freshness status");
 assert.ok(apiCompanyNewsHtml.includes("Cboe/OCC licensed options slot"), "options panel should show licensed provider freshness status");
+assert.ok(apiCompanyNewsHtml.includes("not-available"), "options panel should show explicit availability status");
+assert.ok(apiCompanyNewsHtml.includes("Listed options coverage is not available"), "options panel should explain options availability reason");
+assert.ok(apiCompanyNewsHtml.includes("open interest, volume, and greeks"), "options panel should show licensed options boundary");
 assert.ok(
   appJs.includes("fetchOptions") &&
     appJs.includes("companyOptions") &&
