@@ -11,6 +11,23 @@ function sourceLinks(keys = []) {
     .join("");
 }
 
+function statusUpdateTime(item = {}) {
+  return item.updatedAt || item.latestSuccessAt || item.latestSourceTimestamp || "No update timestamp yet";
+}
+
+function statusSourceTime(item = {}) {
+  return item.latestSourceTimestamp || "No source timestamp yet";
+}
+
+function formatFeedType(type = "feed") {
+  const words = type
+    .split("_")
+    .filter(Boolean)
+    .map(part => part.toLowerCase());
+  if (!words.length) return "Feed";
+  return [`${words[0].slice(0, 1).toUpperCase()}${words[0].slice(1)}`, ...words.slice(1)].join(" ");
+}
+
 function priceSnapshotCard(snapshot = {}) {
   const formatted = formatPriceSnapshot(snapshot);
   return `
@@ -44,10 +61,12 @@ function apiLiveStatusPanel(apiLive = {}) {
         ${statuses.map(item => `
           <div class="mini-row">
             <span>
-              <strong>${escapeHtml(item.feedType || "feed")}</strong><br>
-              <small>${escapeHtml(item.provider || "provider slot")}</small>
+              <strong>${escapeHtml(formatFeedType(item.feedType))}</strong><br>
+              <small>${escapeHtml(item.provider || "provider slot")}</small><br>
+              <small>Updated: ${escapeHtml(statusUpdateTime(item))}</small><br>
+              <small>Source time: ${escapeHtml(statusSourceTime(item))}</small>
             </span>
-            <span class="tag" title="${escapeHtml(item.latestSourceTimestamp || "No source timestamp yet")}">${escapeHtml(item.status || "provider-ready")}</span>
+            <span class="tag" title="${escapeHtml(`Updated: ${statusUpdateTime(item)} / Source time: ${statusSourceTime(item)}`)}">${escapeHtml(item.status || "provider-ready")}</span>
           </div>
         `).join("")}
       </div>

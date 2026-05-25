@@ -78,6 +78,12 @@ try {
     assert.equal(body.company.id, "tsmc");
     assert.ok(body.priceSnapshot.provider, "company live response should include price provider");
     assert.ok(Array.isArray(body.feedStatuses), "company live response should include provider statuses");
+    const priceStatus = body.feedStatuses.find(item => item.feedType === "price");
+    assert.ok(priceStatus?.latestSourceTimestamp, "company live provider status should expose source freshness timing");
+    assert.ok(Object.hasOwn(priceStatus, "latestSuccessAt"), "company live provider status should expose latest update timing");
+    assert.ok(Object.hasOwn(priceStatus, "updatedAt"), "company live provider status should expose API status update timing");
+    const filingsStatus = body.feedStatuses.find(item => item.feedType === "filings");
+    assert.match(filingsStatus?.provider || "", /MOPS public information observation system/, "company live provider status should expose human-readable source labels");
     assert.ok(Array.isArray(body.latestTechnologyAnnouncements), "company live response should include technology announcements");
     assert.ok(Array.isArray(body.latestMeetings), "company live response should include meetings");
   }

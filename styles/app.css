@@ -494,6 +494,8 @@ h3 { font-size: 18px; line-height: 1.25; }
   opacity: 0.72;
   background: var(--surface-soft);
 }
+.api-live-status { grid-column: 1 / -1; }
+.api-live-status .mini-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .live-feed-title {
   display: flex;
   justify-content: space-between;
@@ -1077,6 +1079,7 @@ tr.hidden, .hidden { display: none !important; }
   .hero-stat-grid, .heatmap-grid, .lane-cards, .lower-grid, .component-grid, .landscape-card-view, .flow, .role-map, .matrix, .risk-grid, .bottleneck-map, .maturity-list, .swot-grid, .industry-tech-grid, .relationship-board, .tech-detail-selector, .cross-link-grid, .official-evidence-grid, .workbench-actions, .technology-maturity-list, .technology-bottleneck-map, .official-tech-sources .source-row, .live-feed-grid, .exposure-grid {
     grid-template-columns: 1fr;
   }
+  .api-live-status .mini-list { grid-template-columns: 1fr; }
   .health-grid { grid-template-columns: 1fr; }
   .step-detail-grid { grid-template-columns: 1fr; }
   .technology-process { grid-auto-columns: minmax(178px, 84%); }

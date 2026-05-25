@@ -132,6 +132,14 @@ assert.ok(
   apiRoutes.find(route => route.id === "notes-update")?.responseFields.includes("note.collaborators"),
   "notes update contract should expose collaborator metadata"
 );
+assert.ok(
+  apiRoutes.find(route => route.id === "company-live")?.responseFields.includes("feedStatuses.latestSuccessAt"),
+  "company live contract should expose provider status latest update timing"
+);
+assert.ok(
+  apiRoutes.find(route => route.id === "company-live")?.responseFields.includes("feedStatuses.updatedAt"),
+  "company live contract should expose provider status API update timing"
+);
 
 assert.ok(liveFeedStatuses.includes("delayed"), "live feed statuses should include delayed");
 assert.ok(liveFeedStatuses.includes("not-available"), "live feed statuses should include not-available");
@@ -880,7 +888,19 @@ const apiCompanyHtml = renderRoute({
       tsmc: {
         feedStatuses: [
           { feedType: "price", provider: "TWSE delayed", status: "delayed", latestSourceTimestamp: "2026-05-23T04:00:00Z" },
-          { feedType: "filings", provider: "MOPS", status: "provider-ready" }
+          {
+            feedType: "filings",
+            provider: "MOPS",
+            status: "provider-ready",
+            latestSourceTimestamp: "2026-05-23T04:00:00Z",
+            latestSuccessAt: "2026-05-23T04:05:00Z",
+            updatedAt: "2026-05-23T04:10:00Z"
+          },
+          {
+            feedType: "technology_announcements",
+            provider: "official company technology sources",
+            status: "provider-ready"
+          }
         ],
         latestMeetings: []
       }
@@ -904,6 +924,20 @@ const apiCompanyHtml = renderRoute({
 });
 assert.ok(apiCompanyHtml.includes("api-live-status"), "company detail should render API provider statuses when available");
 assert.ok(apiCompanyHtml.includes("TWSE delayed") && apiCompanyHtml.includes("provider-ready"), "company API status should show providers and statuses");
+assert.ok(
+  apiCompanyHtml.includes("Updated") && apiCompanyHtml.includes("2026-05-23T04:10:00Z"),
+  "company API status should show visible latest update timing"
+);
+assert.ok(
+  apiCompanyHtml.includes("Source time") && apiCompanyHtml.includes("2026-05-23T04:00:00Z"),
+  "company API status should show visible source freshness timing"
+);
+assert.ok(apiCompanyHtml.includes("Technology announcements"), "company API status should render readable feed type labels");
+assert.ok(
+  appCss.includes(".api-live-status { grid-column: 1 / -1; }") &&
+    appCss.includes(".api-live-status .mini-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }"),
+  "API live status card should use a scan-friendly multi-column desktop layout"
+);
 assert.ok(apiCompanyHtml.includes("note-visibility") && apiCompanyHtml.includes("data-save-note"), "notes tab should expose visibility and save controls");
 assert.ok(apiCompanyHtml.includes("data-note-collaborators"), "notes tab should expose collaborator controls for shared research notes");
 assert.ok(apiCompanyHtml.includes("data-update-note-collaborators"), "owner notes should expose collaborator update controls");

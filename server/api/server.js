@@ -155,7 +155,9 @@ function priceHistoryFromSnapshot(snapshot = {}) {
   ];
 }
 
-function providerStatus({ feedType, provider, status, market, entityType, entityId, latestSourceTimestamp }) {
+function providerStatus({ feedType, provider, status, market, entityType, entityId, latestSourceTimestamp, latestSuccessAt, updatedAt }) {
+  const sourceTime = latestSourceTimestamp || null;
+  const successTime = latestSuccessAt || sourceTime;
   return {
     feedType,
     provider,
@@ -163,7 +165,9 @@ function providerStatus({ feedType, provider, status, market, entityType, entity
     entityType: entityType || "global",
     entityId: entityId || "",
     status,
-    latestSourceTimestamp: latestSourceTimestamp || null
+    latestSourceTimestamp: sourceTime,
+    latestSuccessAt: successTime || null,
+    updatedAt: updatedAt || successTime || null
   };
 }
 
@@ -220,7 +224,7 @@ function companyFeedStatuses(companyId) {
     }),
     providerStatus({
       feedType: "filings",
-      provider: (feeds.filings?.sourceKeys || []).join(" / ") || "filings provider slot",
+      provider: sourceLabels(feeds.filings?.sourceKeys || [], "filings provider slot"),
       market: company.market,
       entityType: "company",
       entityId: companyId,
@@ -228,7 +232,7 @@ function companyFeedStatuses(companyId) {
     }),
     providerStatus({
       feedType: "news",
-      provider: (feeds.news?.sourceKeys || []).join(" / ") || "news provider slot",
+      provider: sourceLabels(feeds.news?.sourceKeys || [], "news provider slot"),
       market: company.market,
       entityType: "company",
       entityId: companyId,
@@ -236,7 +240,7 @@ function companyFeedStatuses(companyId) {
     }),
     providerStatus({
       feedType: "options",
-      provider: (feeds.options?.sourceKeys || []).join(" / ") || "options provider slot",
+      provider: sourceLabels(feeds.options?.sourceKeys || [], "options provider slot"),
       market: company.market,
       entityType: "company",
       entityId: companyId,
