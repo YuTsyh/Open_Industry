@@ -8,6 +8,11 @@ import {
   runIngestionDryRun,
   summarizeIngestionState
 } from "../server/ingestion/runner.js";
+import {
+  buildCompanyTickerIndex,
+  normalizeEventLinks,
+  resolveCompanyId
+} from "../server/ingestion/normalization.js";
 import { ingestionProviderContracts } from "../server/ingestion/providerContracts.js";
 
 const tempDir = await mkdtemp(join(tmpdir(), "industrytopo-ingestion-"));
@@ -32,6 +37,23 @@ async function request(baseUrl, path) {
 }
 
 try {
+  const tickerIndex = buildCompanyTickerIndex();
+  assert.equal(tickerIndex.get("2330.TW"), "tsmc", "ticker index should map TW tickers to stable company ids");
+  assert.equal(resolveCompanyId(" nvda "), "nvidia", "ticker normalization should ignore case and surrounding whitespace");
+  assert.equal(resolveCompanyId("tsmc"), "tsmc", "company ids should pass through the normalization layer");
+
+  const normalizedEvent = normalizeEventLinks({
+    title: "TSMC CoWoS capacity update",
+    tickers: ["2330.tw", "NVDA", "2330.TW"],
+    companyIds: ["tsmc"],
+    industryIds: ["Advanced Packaging", "ai-server"],
+    technologyIds: ["CoWoS"]
+  });
+  assert.deepEqual(normalizedEvent.linkedCompanyIds, ["tsmc", "nvidia"], "event normalization should map unique tickers to company ids");
+  assert.deepEqual(normalizedEvent.linkedIndustryIds, ["advanced-packaging", "ai-server"], "event normalization should map industry names and ids");
+  assert.deepEqual(normalizedEvent.linkedTechnologyIds, ["cowos"], "event normalization should map technology names to ids");
+  assert.deepEqual(normalizedEvent.unmappedTickers, [], "event normalization should surface no unmapped tickers for covered companies");
+
   const dryRun = await runIngestionDryRun({
     stateFile,
     env: {},
