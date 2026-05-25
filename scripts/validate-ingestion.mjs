@@ -13,6 +13,7 @@ import {
   normalizeEventLinks,
   resolveCompanyId
 } from "../server/ingestion/normalization.js";
+import { transformProviderRecord } from "../server/ingestion/transforms.js";
 import { ingestionProviderContracts } from "../server/ingestion/providerContracts.js";
 
 const tempDir = await mkdtemp(join(tmpdir(), "industrytopo-ingestion-"));
@@ -53,6 +54,75 @@ try {
   assert.deepEqual(normalizedEvent.linkedIndustryIds, ["advanced-packaging", "ai-server"], "event normalization should map industry names and ids");
   assert.deepEqual(normalizedEvent.linkedTechnologyIds, ["cowos"], "event normalization should map technology names to ids");
   assert.deepEqual(normalizedEvent.unmappedTickers, [], "event normalization should surface no unmapped tickers for covered companies");
+
+  const priceRow = transformProviderRecord({
+    feedType: "price",
+    provider: "TWSE OpenAPI",
+    market: "tw",
+    ticker: "2330.tw",
+    tradeDate: "2026-05-23",
+    open: "2250",
+    high: "2320",
+    low: "2240",
+    close: "2310",
+    volume: "123456",
+    sourceTimestamp: "2026-05-23T06:00:00Z"
+  });
+  assert.equal(priceRow.table, "daily_prices", "price transformer should target daily_prices");
+  assert.equal(priceRow.record.market, "TW", "price transformer should normalize market");
+  assert.equal(priceRow.record.ticker, "2330.TW", "price transformer should normalize ticker");
+  assert.equal(priceRow.record.close, 2310, "price transformer should coerce numeric OHLC values");
+  assert.equal(priceRow.record.provider, "TWSE OpenAPI", "price transformer should preserve licensed provider");
+  assert.equal(priceRow.record.source_timestamp, "2026-05-23T06:00:00Z", "price transformer should preserve source timestamp");
+
+  const filingRow = transformProviderRecord({
+    feedType: "filings",
+    sourceId: "mops",
+    ticker: "2330.tw",
+    filingType: "monthly_revenue",
+    title: "TSMC monthly revenue filing",
+    publishedAt: "2026-05-22T08:00:00Z",
+    sourceUrl: "https://example.com/filing",
+    summary: "Monthly revenue source-backed filing."
+  });
+  assert.equal(filingRow.table, "filings", "filing transformer should target filings");
+  assert.equal(filingRow.record.company_id, "tsmc", "filing transformer should map ticker to company_id");
+  assert.equal(filingRow.record.source_id, "mops", "filing transformer should preserve source id");
+  assert.equal(filingRow.record.extracted_summary, "Monthly revenue source-backed filing.", "filing transformer should normalize summaries");
+
+  const newsRow = transformProviderRecord({
+    feedType: "news",
+    title: "TSMC CoWoS capacity update",
+    sourceUrl: "https://example.com/news",
+    sourceType: "official_ir",
+    confidence: "source",
+    publishedAt: "2026-05-23T02:00:00Z",
+    tickers: ["2330.tw"],
+    industryIds: ["Advanced Packaging"],
+    technologyIds: ["CoWoS"]
+  });
+  assert.equal(newsRow.table, "news_events", "news transformer should target news_events");
+  assert.deepEqual(newsRow.record.linked_company_ids, ["tsmc"], "news transformer should normalize linked company ids");
+  assert.deepEqual(newsRow.record.linked_industry_ids, ["advanced-packaging"], "news transformer should normalize linked industry ids");
+  assert.deepEqual(newsRow.record.linked_technology_ids, ["cowos"], "news transformer should normalize linked technology ids");
+
+  const announcementRow = transformProviderRecord({
+    feedType: "technology_announcements",
+    provider: "Official company technology sources",
+    sourceId: "tsmc3dFabric",
+    title: "3DFabric platform update",
+    summary: "Official source-backed technology announcement.",
+    sourceUrl: "https://example.com/tech",
+    publishedAt: "2026-05-23T03:00:00Z",
+    sourceTimestamp: "2026-05-23T03:05:00Z",
+    companyIds: ["tsmc"],
+    industryIds: ["advanced-packaging"],
+    technologyIds: ["cowos"]
+  });
+  assert.equal(announcementRow.table, "technology_announcements", "technology transformer should target technology_announcements");
+  assert.equal(announcementRow.record.provider, "Official company technology sources", "technology transformer should preserve provider");
+  assert.deepEqual(announcementRow.record.linked_company_ids, ["tsmc"], "technology transformer should normalize linked company ids");
+  assert.deepEqual(announcementRow.record.linked_technology_ids, ["cowos"], "technology transformer should normalize linked technology ids");
 
   const dryRun = await runIngestionDryRun({
     stateFile,
