@@ -278,17 +278,47 @@ function renderMeetingPanel(meetings = [], providerStatuses = []) {
   `;
 }
 
+function renderOptionsPanel(optionsPayload = {}) {
+  const chain = optionsPayload.chain || optionsPayload.items || [];
+  const providerStatuses = optionsPayload.providerStatuses || [];
+  return `
+    <article class="card options-chain-panel">
+      <p class="eyebrow">Options Chain</p>
+      <h2>Options Chain</h2>
+      <div class="mini-list">
+        ${chain.length ? chain.map(item => `
+          <div class="mini-row">
+            <span>
+              <strong>${escapeHtml(item.occSymbol || item.occ_symbol || "Options contract")}</strong><br>
+              <small>${escapeHtml(item.expiration || "expiration pending")} / ${escapeHtml(item.optionType || item.option_type || "type pending")} / ${escapeHtml(String(item.strike ?? "strike pending"))}</small>
+            </span>
+            <span class="tag">${escapeHtml(item.provider || item.status || "licensed")}</span>
+          </div>
+        `).join("") : `<div class="mini-row"><span>No licensed options chain loaded yet.</span><span class="tag">provider-ready</span></div>`}
+      </div>
+      <div class="source-row">
+        ${providerStatuses.length ? providerStatuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "options")} - ${escapeHtml(item.status || "provider-ready")}</span>`).join("") : `<span class="tag">licensed vendor required</span>`}
+      </div>
+      <p class="small">Options data must come from OCC, Cboe, or a licensed vendor through the backend API.</p>
+    </article>
+  `;
+}
+
 function renderNewsTab(company, state = {}) {
   const snapshot = company.liveFeeds?.priceSnapshot || {};
   const companyId = state.companyId || "tsmc";
   const apiLive = state.api?.companyLive?.[companyId] || {};
   const meetingPayload = state.api?.companyMeetings?.[companyId] || {};
+  const optionsPayload = state.api?.companyOptions?.[companyId] || {
+    chain: apiLive.latestOptions || [],
+    providerStatuses: (apiLive.feedStatuses || []).filter(item => item.feedType === "options")
+  };
   const meetings = meetingPayload.items || apiLive.latestMeetings || [];
   const events = [
     ...(apiLive.latestNews || []).map(item => ({ ...item, type: "news" })),
     ...(apiLive.latestFilings || []).map(item => ({ ...item, type: "filing" }))
   ];
-  if (events.length || meetings.length) {
+  if (events.length || meetings.length || optionsPayload.chain?.length || optionsPayload.providerStatuses?.length) {
     return `
       <div class="overview-grid">
         <article class="card company-event-timeline">
@@ -299,6 +329,7 @@ function renderNewsTab(company, state = {}) {
           </div>
         </article>
         ${renderMeetingPanel(meetings, meetingPayload.providerStatuses || [])}
+        ${renderOptionsPanel(optionsPayload)}
       </div>
     `;
   }

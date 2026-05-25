@@ -24,6 +24,7 @@ import {
   fetchIngestionStatus,
   fetchNews,
   fetchNotes,
+  fetchOptions,
   fetchTechnologyAnnouncements,
   updateNote
 } from "../src/api/client.js";
@@ -204,6 +205,17 @@ const fetchImpl = async (url, options = {}) => {
       })
     };
   }
+  if (url.endsWith("/api/live/options?companyId=tsmc")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        underlying: { companyId: "tsmc", ticker: "2330.TW", market: "TW" },
+        chain: [],
+        providerStatuses: [{ feedType: "options", provider: "Cboe/OCC licensed options slot", status: "provider-ready" }]
+      })
+    };
+  }
   if (url.includes("/api/live/heatmap")) {
     return {
       ok: true,
@@ -314,6 +326,10 @@ assert.equal(pricePayload.trend.label, "+2.67%", "frontend API client should kee
 const meetingsPayload = await fetchCompanyMeetings({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
 assert.equal(meetingsPayload.items[0].title, "Technology conference transcript", "frontend API client should fetch meeting transcript items");
 assert.equal(meetingsPayload.items[0].transcriptUrl, "https://example.com/transcript", "meeting transcript payload should preserve transcript links");
+
+const optionsPayload = await fetchOptions({ baseUrl: apiConfig.baseUrl, companyId: "tsmc", fetchImpl });
+assert.equal(optionsPayload.underlying.companyId, "tsmc", "frontend API client should fetch company options payload");
+assert.equal(optionsPayload.providerStatuses[0].provider, "Cboe/OCC licensed options slot", "options payload should preserve licensed provider metadata");
 
 const heatmapPayload = await fetchHeatmap({ baseUrl: apiConfig.baseUrl, period: "latest", universe: "cap", fetchImpl });
 assert.equal(heatmapPayload.rows[0].label, "API Advanced Packaging", "frontend API client should fetch live heatmap rows");
@@ -1043,14 +1059,29 @@ const apiCompanyNewsHtml = renderRoute({
         ],
         providerStatuses: [{ feedType: "meetings", provider: "licensed transcript provider", status: "provider-ready" }]
       }
+    },
+    companyOptions: {
+      tsmc: {
+        underlying: { companyId: "tsmc", ticker: "2330.TW", market: "TW" },
+        chain: [],
+        providerStatuses: [{ feedType: "options", provider: "Cboe/OCC licensed options slot", status: "provider-ready" }]
+      }
     }
   }
 });
 assert.ok(apiCompanyNewsHtml.includes("company-event-timeline"), "company news tab should render API event timeline");
 assert.ok(apiCompanyNewsHtml.includes("Meeting Transcripts"), "company news tab should render meeting transcript panel");
+assert.ok(apiCompanyNewsHtml.includes("Options Chain"), "company news tab should render options chain panel");
 assert.ok(apiCompanyNewsHtml.includes("CoWoS capacity update") && apiCompanyNewsHtml.includes("Monthly revenue filing"), "company news tab should show news and filings");
 assert.ok(apiCompanyNewsHtml.includes("https://example.com/transcript"), "meeting transcript panel should keep transcript links separate from source cards");
 assert.ok(apiCompanyNewsHtml.includes("licensed transcript provider") && apiCompanyNewsHtml.includes("provider-ready"), "meeting transcript panel should show provider freshness status");
+assert.ok(apiCompanyNewsHtml.includes("Cboe/OCC licensed options slot"), "options panel should show licensed provider freshness status");
+assert.ok(
+  appJs.includes("fetchOptions") &&
+    appJs.includes("companyOptions") &&
+    appJs.includes("refreshCompanyOptions"),
+  "company route should refresh options through the backend API instead of browser-side market data calls"
+);
 
 const apiIndustryNewsHtml = renderRoute({
   ...requiredState,

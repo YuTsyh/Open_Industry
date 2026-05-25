@@ -82,6 +82,21 @@ export async function fetchCompanyMeetings({
   return readJson(response);
 }
 
+export async function fetchOptions({
+  baseUrl,
+  companyId,
+  expiration,
+  limit,
+  fetchImpl = globalThis.fetch
+}) {
+  const params = new URLSearchParams();
+  if (companyId) params.set("companyId", companyId);
+  if (expiration) params.set("expiration", expiration);
+  if (limit) params.set("limit", String(limit));
+  const response = await fetchImpl(`${trimSlash(baseUrl)}/api/live/options?${params}`);
+  return readJson(response);
+}
+
 export async function fetchHeatmap({
   baseUrl,
   period = "latest",

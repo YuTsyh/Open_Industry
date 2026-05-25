@@ -10,6 +10,7 @@ import {
   fetchIngestionStatus,
   fetchNews,
   fetchNotes,
+  fetchOptions,
   fetchTechnologyAnnouncements,
   updateNote
 } from "./api/client.js";
@@ -50,6 +51,7 @@ const state = {
     ...buildApiConfig(),
     companyLive: {},
     companyMeetings: {},
+    companyOptions: {},
     companyPrices: {},
     companySignals: {},
     heatmap: {},
@@ -188,6 +190,10 @@ function shouldFetchCompanyMeetings(companyId) {
   return state.route === "company" && state.companyId === companyId && state.companyTab === "news";
 }
 
+function shouldFetchCompanyOptions(companyId) {
+  return state.route === "company" && state.companyId === companyId && state.companyTab === "news";
+}
+
 async function refreshCompanyMeetings(companyId) {
   const key = `meetings:${companyId}`;
   if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.companyMeetings[companyId]) return;
@@ -206,6 +212,27 @@ async function refreshCompanyMeetings(companyId) {
   }
   delete state.api.pending[key];
   if (shouldFetchCompanyMeetings(companyId)) render();
+}
+
+async function refreshCompanyOptions(companyId) {
+  const key = `options:${companyId}`;
+  if (!state.api.enabled || !state.api.baseUrl || state.api.pending[key] || state.api.companyOptions[companyId]) return;
+
+  state.api.pending[key] = true;
+  try {
+    state.api.companyOptions[companyId] = await fetchOptions({
+      baseUrl: state.api.baseUrl,
+      companyId
+    });
+  } catch (error) {
+    state.api.companyOptions[companyId] = {
+      underlying: { companyId },
+      chain: [],
+      providerStatuses: [{ feedType: "options", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
+    };
+  }
+  delete state.api.pending[key];
+  if (shouldFetchCompanyOptions(companyId)) render();
 }
 
 async function refreshCompanySignals(companyId) {
@@ -378,7 +405,10 @@ function refreshApiForRoute() {
   if (state.route === "company") {
     refreshCompanyApi(state.companyId || "tsmc");
     refreshCompanyPrice(state.companyId || "tsmc");
-    if (state.companyTab === "news") refreshCompanyMeetings(state.companyId || "tsmc");
+    if (state.companyTab === "news") {
+      refreshCompanyMeetings(state.companyId || "tsmc");
+      refreshCompanyOptions(state.companyId || "tsmc");
+    }
   }
   if (state.route === "industry" && state.industryTab === "landscape") {
     industryCompanyIds(industries[state.industryId] || industries[defaultIndustry]).slice(0, 12).forEach(companyId => {
