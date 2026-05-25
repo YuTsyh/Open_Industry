@@ -1,6 +1,7 @@
 import { industries, industryOrder, technologyCatalog, technologyMenus } from "../data.js";
 import { escapeHtml, selectedTechnology } from "../utils.js";
 import { techMenuOptions } from "../components/panels.js";
+import { notesKey, renderNotesPanel } from "../components/notesPanel.js";
 import {
   technologyBottleneckPanel,
   technologyComparisonTable,
@@ -79,6 +80,7 @@ export function renderTechnology(state) {
       ${technologyStepExplainer(tech)}
       ${officialTechnologySources(state.techId)}
       ${renderTechnologyAnnouncements(state)}
+      ${renderTechnologyNotes(state, tech)}
       ${liveDataReadinessPanel()}
 
       <div class="overview-grid">
@@ -96,4 +98,17 @@ export function renderTechnology(state) {
       ${technologyRoleMap(tech)}
     </section>
   `;
+}
+
+function renderTechnologyNotes(state, tech) {
+  const api = state.api || {};
+  const entityId = state.techId || "cowos";
+  return renderNotesPanel({
+    api,
+    notesState: api.notes?.[notesKey("technology", entityId)] || {},
+    entityType: "technology",
+    entityId,
+    entityLabel: tech.name,
+    legacyPlaceholder: `Record ${tech.name} technical evidence, constraints and open questions...`
+  });
 }

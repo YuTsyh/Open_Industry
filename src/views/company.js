@@ -1,9 +1,10 @@
 import { companies, officialSources } from "../data.js";
 import { formatPriceSnapshot, topIndustryExposures } from "../domain/companyMetrics.js";
-import { escapeHtml, renderMarkdownPreview } from "../utils.js";
+import { escapeHtml } from "../utils.js";
 import { confidenceBadge, marketBadge, techBadge } from "../components/badges.js";
 import { relationshipGraph } from "../components/maps.js";
 import { companyLiveFeedPanel } from "../components/liveFeeds.js";
+import { notesKey, renderNotesPanel } from "../components/notesPanel.js";
 import { priceSparkline } from "../components/sparklines.js";
 
 function sourceTags(keys = []) {
@@ -319,78 +320,15 @@ function renderNewsTab(company, state = {}) {
   `;
 }
 
-function collaboratorValue(collaborators = []) {
-  return collaborators.map(item => `${item.userId}:${item.role || "reader"}`).join(", ");
-}
-
-function renderApiNotes(notesState = {}, { currentUserId = "", companyId = "" } = {}) {
-  const notes = notesState.items || [];
-  if (notesState.status === "loading") {
-    return `<div class="mini-row"><span>Loading notes from API...</span><span class="tag">pending</span></div>`;
-  }
-  if (notesState.error) {
-    return `<div class="mini-row"><span>${escapeHtml(notesState.error)}</span><span class="tag">error</span></div>`;
-  }
-  if (!notes.length) {
-    return `<div class="mini-row"><span>No saved API notes for this company yet.</span><span class="tag">empty</span></div>`;
-  }
-  return notes.map(note => `
-    <div class="mini-row api-note-row" data-note-id="${escapeHtml(String(note.id))}">
-      <span>
-        <strong>${escapeHtml(note.title || "Untitled note")}</strong><br>
-        <div class="note-markdown">${renderMarkdownPreview(note.bodyMarkdown || "")}</div>
-        ${note.ownerUserId === currentUserId ? `
-          <span class="note-collaborator-editor">
-            <input class="notes-title" data-note-collaborator-editor type="text" value="${escapeHtml(collaboratorValue(note.collaborators || []))}" aria-label="Collaborator roles for ${escapeHtml(note.title || "Untitled note")}">
-            <button class="pill-button secondary" data-update-note-collaborators data-note-id="${escapeHtml(String(note.id))}" data-company-id="${escapeHtml(companyId)}" type="button">Update collaborators</button>
-          </span>
-        ` : ""}
-      </span>
-      <span class="tag">${escapeHtml(note.visibility || "private")}</span>
-    </div>
-  `).join("");
-}
-
 function renderNotesTab(company, state = {}) {
   const companyId = state.companyId || "tsmc";
   const api = state.api || {};
-  const notesState = api.notes?.[companyId] || {};
-  const tokenState = api.enabled ? (api.token ? "JWT ready" : "JWT required") : "static fallback";
-  if (!api.enabled) return renderLegacyNotesTab(company);
-  return `
-    <article class="card">
-      <p class="eyebrow">Research notes</p>
-      <h2>Research notebook</h2>
-      <div class="mini-list api-notes-list">${renderApiNotes(notesState, { currentUserId: api.userId || "", companyId })}</div>
-      <div class="notes-form">
-        <input class="notes-title" data-note-title type="text" placeholder="Note title">
-        <textarea class="notes-area" data-note-body placeholder="Record ${escapeHtml(company.name)} exposure, price movement, supply-chain evidence and open questions..."></textarea>
-        <div class="note-markdown note-markdown-preview" data-note-preview aria-live="polite"></div>
-        <input class="notes-title" data-note-collaborators type="text" placeholder="Collaborators, e.g. user:reader, teammate:editor">
-        <div class="note-actions">
-          <label class="field note-visibility">
-            <span>Visibility</span>
-            <select data-note-visibility>
-              <option value="private">Private</option>
-              <option value="shared">Shared</option>
-            </select>
-          </label>
-          <button class="pill-button primary" data-save-note data-company-id="${escapeHtml(companyId)}" type="button">Save note</button>
-          <span class="tag">${escapeHtml(tokenState)}</span>
-        </div>
-      </div>
-      <p class="small">API mode persists markdown notes through JWT-protected endpoints; without API settings this remains a local research scratchpad.</p>
-    </article>
-  `;
-}
-
-function renderLegacyNotesTab(company) {
-  return `
-    <article class="card">
-      <p class="eyebrow">Research notes</p>
-      <h2>研究筆記</h2>
-      <textarea class="notes-area" placeholder="記錄 ${escapeHtml(company.name)} 的產業曝險、價格異動、供應鏈證據與待查問題..."></textarea>
-      <p class="small">筆記目前保留在前端狀態；正式版可接使用者帳號與後端資料庫。</p>
-    </article>
-  `;
+  return renderNotesPanel({
+    api,
+    notesState: api.notes?.[notesKey("company", companyId)] || {},
+    entityType: "company",
+    entityId: companyId,
+    entityLabel: company.name,
+    legacyPlaceholder: `Record ${company.name} exposure, price movement, supply-chain evidence and open questions...`
+  });
 }

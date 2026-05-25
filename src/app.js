@@ -14,6 +14,7 @@ import {
   updateNote
 } from "./api/client.js";
 import { nextRovingIndex } from "./components/a11y.js";
+import { notesKey } from "./components/notesPanel.js";
 import { matchingSearchItems, nextSearchIndex, searchSuggestionButton } from "./components/searchSuggestions.js";
 import { displayCompany, escapeHtml, industryCompanyIds, renderMarkdownPreview } from "./utils.js";
 import { renderDrawer, renderRoute } from "./views/index.js";
@@ -113,8 +114,24 @@ function shouldRenderApiRefresh(companyId) {
   return state.route === "company" && state.companyId === companyId;
 }
 
-function shouldFetchCompanyNotes(companyId) {
-  return state.route === "company" && state.companyId === companyId && state.companyTab === "notes";
+function activeNotesEntity() {
+  if (state.route === "company" && state.companyTab === "notes") {
+    return { entityType: "company", entityId: state.companyId || "tsmc" };
+  }
+  if (state.route === "industry" && state.industryTab === "notes") {
+    return { entityType: "industry", entityId: state.industryId || defaultIndustry };
+  }
+  if (state.route === "technology") {
+    return { entityType: "technology", entityId: state.techId || "cowos" };
+  }
+  return null;
+}
+
+function shouldRenderNotesRefresh(entityType, entityId) {
+  if (entityType === "company") return state.route === "company" && state.companyId === entityId && state.companyTab === "notes";
+  if (entityType === "industry") return state.route === "industry" && state.industryId === entityId && state.industryTab === "notes";
+  if (entityType === "technology") return state.route === "technology" && state.techId === entityId;
+  return false;
 }
 
 function isTerminalNotesState(notesState) {
@@ -124,14 +141,9 @@ function isTerminalNotesState(notesState) {
 async function refreshCompanyApi(companyId) {
   if (!state.api.enabled || !state.api.baseUrl || state.api.pending[companyId]) return;
   const needsLive = !state.api.companyLive[companyId];
-  const shouldLoadNotes = shouldFetchCompanyNotes(companyId);
-  const needsNotes = shouldLoadNotes && !isTerminalNotesState(state.api.notes[companyId]);
-  if (!needsLive && !needsNotes) return;
+  if (!needsLive) return;
 
   state.api.pending[companyId] = true;
-  if (needsNotes && state.api.token && !state.api.notes[companyId]) {
-    state.api.notes[companyId] = { status: "loading", items: [] };
-  }
 
   if (needsLive) {
     try {
@@ -144,22 +156,6 @@ async function refreshCompanyApi(companyId) {
         feedStatuses: [{ feedType: "api", provider: state.api.baseUrl, status: "error", latestSourceTimestamp: error.message }]
       };
     }
-  }
-
-  if (needsNotes && state.api.token) {
-    try {
-      const notes = await fetchNotes({
-        baseUrl: state.api.baseUrl,
-        entityType: "company",
-        entityId: companyId,
-        token: state.api.token
-      });
-      state.api.notes[companyId] = { status: "ready", items: notes.items || [] };
-    } catch (error) {
-      state.api.notes[companyId] = { status: "error", error: error.message, items: [] };
-    }
-  } else if (needsNotes) {
-    state.api.notes[companyId] = { status: "auth-required", items: [] };
   }
 
   delete state.api.pending[companyId];
@@ -342,7 +338,39 @@ async function refreshTechnologyAnnouncements(technologyId) {
   render();
 }
 
+async function refreshActiveNotes() {
+  const entity = activeNotesEntity();
+  if (!entity || !state.api.enabled || !state.api.baseUrl) return;
+
+  const key = notesKey(entity.entityType, entity.entityId);
+  const pendingKey = `notes:${key}`;
+  if (state.api.pending[pendingKey] || isTerminalNotesState(state.api.notes[key])) return;
+
+  if (!state.api.token) {
+    state.api.notes[key] = { status: "auth-required", items: [] };
+    if (shouldRenderNotesRefresh(entity.entityType, entity.entityId)) render();
+    return;
+  }
+
+  state.api.notes[key] = { status: "loading", items: [] };
+  state.api.pending[pendingKey] = true;
+  try {
+    const notes = await fetchNotes({
+      baseUrl: state.api.baseUrl,
+      entityType: entity.entityType,
+      entityId: entity.entityId,
+      token: state.api.token
+    });
+    state.api.notes[key] = { status: "ready", items: notes.items || [] };
+  } catch (error) {
+    state.api.notes[key] = { status: "error", error: error.message, items: [] };
+  }
+  delete state.api.pending[pendingKey];
+  if (shouldRenderNotesRefresh(entity.entityType, entity.entityId)) render();
+}
+
 function refreshApiForRoute() {
+  refreshActiveNotes();
   if (state.route === "overview") {
     refreshHeatmap();
     refreshIngestionStatus();
@@ -362,11 +390,13 @@ function refreshApiForRoute() {
   if (state.route === "technology") refreshTechnologyAnnouncements(state.techId);
 }
 
-async function saveCompanyNote(button) {
-  const companyId = button.dataset.companyId || state.companyId || "tsmc";
+async function saveEntityNote(button) {
+  const entityType = button.dataset.noteEntityType || "company";
+  const entityId = button.dataset.noteEntityId || button.dataset.companyId || state.companyId || "tsmc";
+  const key = notesKey(entityType, entityId);
   const card = button.closest(".card");
   if (!state.api.enabled || !state.api.baseUrl || !state.api.token) {
-    state.api.notes[companyId] = { status: "error", error: "Configure API base URL and JWT token before saving notes.", items: state.api.notes[companyId]?.items || [] };
+    state.api.notes[key] = { status: "error", error: "Configure API base URL and JWT token before saving notes.", items: state.api.notes[key]?.items || [] };
     render();
     return;
   }
@@ -382,14 +412,14 @@ async function saveCompanyNote(button) {
     const result = await createNote({
       baseUrl: state.api.baseUrl,
       token: state.api.token,
-      note: { entityType: "company", entityId: companyId, title, bodyMarkdown, visibility, collaborators }
+      note: { entityType: button.dataset.noteEntityType || entityType, entityId: button.dataset.noteEntityId || entityId, title, bodyMarkdown, visibility, collaborators }
     });
-    const current = state.api.notes[companyId]?.items || [];
-    state.api.notes[companyId] = { status: "ready", items: [result.note, ...current] };
+    const current = state.api.notes[key]?.items || [];
+    state.api.notes[key] = { status: "ready", items: [result.note, ...current] };
   } catch (error) {
-    state.api.notes[companyId] = { status: "error", error: error.message, items: state.api.notes[companyId]?.items || [] };
+    state.api.notes[key] = { status: "error", error: error.message, items: state.api.notes[key]?.items || [] };
   }
-  if (shouldRenderApiRefresh(companyId)) render();
+  if (shouldRenderNotesRefresh(entityType, entityId)) render();
 }
 
 function parseCollaborators(value = "") {
@@ -410,11 +440,13 @@ function updateNotePreview(textarea) {
 }
 
 async function updateNoteCollaborators(button) {
-  const companyId = button.dataset.companyId || state.companyId || "tsmc";
+  const entityType = button.dataset.noteEntityType || "company";
+  const entityId = button.dataset.noteEntityId || button.dataset.companyId || state.companyId || "tsmc";
+  const key = notesKey(entityType, entityId);
   const noteId = button.dataset.noteId;
   const row = button.closest(".api-note-row");
   if (!state.api.enabled || !state.api.baseUrl || !state.api.token) {
-    state.api.notes[companyId] = { status: "error", error: "Configure API base URL and JWT token before updating collaborators.", items: state.api.notes[companyId]?.items || [] };
+    state.api.notes[key] = { status: "error", error: "Configure API base URL and JWT token before updating collaborators.", items: state.api.notes[key]?.items || [] };
     render();
     return;
   }
@@ -428,15 +460,15 @@ async function updateNoteCollaborators(button) {
         collaborators: parseCollaborators(row?.querySelector("[data-note-collaborator-editor]")?.value || "")
       }
     });
-    const current = state.api.notes[companyId]?.items || [];
-    state.api.notes[companyId] = {
+    const current = state.api.notes[key]?.items || [];
+    state.api.notes[key] = {
       status: "ready",
       items: current.map(note => String(note.id) === String(noteId) ? result.note : note)
     };
   } catch (error) {
-    state.api.notes[companyId] = { status: "error", error: error.message, items: state.api.notes[companyId]?.items || [] };
+    state.api.notes[key] = { status: "error", error: error.message, items: state.api.notes[key]?.items || [] };
   }
-  if (shouldRenderApiRefresh(companyId)) render();
+  if (shouldRenderNotesRefresh(entityType, entityId)) render();
 }
 
 function relationTextForNode(node) {
@@ -576,7 +608,7 @@ document.addEventListener("click", event => {
 
   const saveNote = event.target.closest("[data-save-note]");
   if (saveNote) {
-    saveCompanyNote(saveNote);
+    saveEntityNote(saveNote);
     return;
   }
 

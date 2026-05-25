@@ -921,6 +921,77 @@ assert.ok(
   appJs.includes('closest(".api-note-row")'),
   "collaborator updates should read the editor input from the note row, not the clicked button"
 );
+assert.ok(
+  apiCompanyHtml.includes('data-note-entity-type="company"') &&
+    apiCompanyHtml.includes('data-note-entity-id="tsmc"'),
+  "company notes should bind save/update controls to the company entity"
+);
+
+const apiIndustryNotesHtml = renderRoute({
+  ...requiredState,
+  route: "industry",
+  industryTab: "notes",
+  api: {
+    enabled: true,
+    userId: "analyst-1",
+    notes: {
+      "industry:advanced-packaging": {
+        status: "ready",
+        items: [
+          {
+            id: 17,
+            ownerUserId: "analyst-1",
+            title: "Industry thesis",
+            bodyMarkdown: "- Track **substrate** risk",
+            visibility: "shared",
+            collaborators: []
+          }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiIndustryNotesHtml.includes("Industry thesis"), "industry notes tab should render API notes");
+assert.ok(
+  apiIndustryNotesHtml.includes('data-note-entity-type="industry"') &&
+    apiIndustryNotesHtml.includes('data-note-entity-id="advanced-packaging"'),
+  "industry notes should bind save/update controls to the industry entity"
+);
+
+const apiTechnologyNotesHtml = renderRoute({
+  ...requiredState,
+  route: "technology",
+  api: {
+    enabled: true,
+    userId: "analyst-1",
+    notes: {
+      "technology:cowos": {
+        status: "ready",
+        items: [
+          {
+            id: 27,
+            ownerUserId: "analyst-1",
+            title: "Technology watch",
+            bodyMarkdown: "- Track **interposer** throughput",
+            visibility: "private",
+            collaborators: []
+          }
+        ]
+      }
+    }
+  }
+});
+assert.ok(apiTechnologyNotesHtml.includes("Technology watch"), "technology page should render API notes");
+assert.ok(
+  apiTechnologyNotesHtml.includes('data-note-entity-type="technology"') &&
+    apiTechnologyNotesHtml.includes('data-note-entity-id="cowos"'),
+  "technology notes should bind save/update controls to the technology entity"
+);
+assert.ok(
+  appJs.includes("entityType: button.dataset.noteEntityType") &&
+    appJs.includes("entityId: button.dataset.noteEntityId"),
+  "note save handler should persist notes against the selected entity type and id"
+);
 
 const apiReaderNotesHtml = renderRoute({
   ...requiredState,

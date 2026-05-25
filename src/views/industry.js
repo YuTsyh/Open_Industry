@@ -6,6 +6,7 @@ import { filterPanel } from "../components/panels.js";
 import { topologyBoard } from "../components/maps.js";
 import { crossIndustryPanel } from "../components/crossIndustry.js";
 import { officialEvidencePanel } from "../components/officialEvidence.js";
+import { notesKey, renderNotesPanel } from "../components/notesPanel.js";
 
 export function renderIndustry(state, industry) {
   const tab = state.industryTab;
@@ -15,7 +16,8 @@ export function renderIndustry(state, industry) {
     ["landscape", "Company Landscape"],
     ["bottlenecks", "Bottlenecks & Spillover"],
     ["technology", "Technology Details"],
-    ["news", "News & Filings"]
+    ["news", "News & Filings"],
+    ["notes", "Notes"]
   ];
   return `
     <section class="page-shell industry-page">
@@ -41,6 +43,7 @@ export function renderIndustry(state, industry) {
       ${tab === "bottlenecks" ? renderBottlenecks(state, industry) : ""}
       ${tab === "technology" ? renderIndustryTechnology(state, industry) : ""}
       ${tab === "news" ? renderNews(state, industry) : ""}
+      ${tab === "notes" ? renderIndustryNotes(state, industry) : ""}
     </section>
   `;
 }
@@ -202,6 +205,23 @@ function renderNews(state, industry) {
       </div>
       <article class="card"><h2>近期更新時間線</h2><div class="timeline">${industry.snapshot.bottlenecks.map((item, index) => `<div class="timeline-step"><strong>${escapeHtml(item)}</strong><span class="small">第 ${index + 1} 優先查證項目。</span></div>`).join("")}</div></article>
       <article class="card"><h2>來源備註</h2><div class="mini-list">${sourceNotes.map(note => `<div class="mini-row"><span>${escapeHtml(note.label)}</span><span class="tag">public</span></div>`).join("")}</div></article>
+    </section>
+  `;
+}
+
+function renderIndustryNotes(state, industry) {
+  const api = state.api || {};
+  const entityId = state.industryId || "advanced-packaging";
+  return `
+    <section class="tab-panel active" id="industry-panel-notes" role="tabpanel" aria-labelledby="industry-tab-notes">
+      ${renderNotesPanel({
+        api,
+        notesState: api.notes?.[notesKey("industry", entityId)] || {},
+        entityType: "industry",
+        entityId,
+        entityLabel: industry.name,
+        legacyPlaceholder: `Record ${industry.name} industry thesis, catalysts and source checks...`
+      })}
     </section>
   `;
 }
