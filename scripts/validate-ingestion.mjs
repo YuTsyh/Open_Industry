@@ -148,6 +148,55 @@ try {
   assert.ok(summary.providersSkipped > 0, "summary should surface skipped providers");
   assert.ok(summary.alerts.some(alert => alert.level === "warning"), "summary should create warning alerts for skipped licensed providers");
 
+  const sampledDryRun = await runIngestionDryRun({
+    stateFile,
+    env: {},
+    now: () => new Date("2026-05-23T00:05:00.000Z"),
+    adapterSamples: {
+      "twse-daily-prices": [
+        {
+          market: "tw",
+          ticker: "2330.tw",
+          tradeDate: "2026-05-23",
+          close: "2310",
+          sourceTimestamp: "2026-05-23T06:00:00Z"
+        }
+      ],
+      "mops-filings-events": [
+        {
+          sourceId: "mops",
+          ticker: "2330.tw",
+          filingType: "monthly_revenue",
+          title: "TSMC monthly revenue filing",
+          sourceUrl: "https://example.com/filing"
+        }
+      ]
+    }
+  });
+  const twseRun = sampledDryRun.runs.find(run => run.providerId === "twse-daily-prices");
+  const mopsRun = sampledDryRun.runs.find(run => run.providerId === "mops-filings-events");
+  assert.equal(twseRun.recordsSeen, 1, "sampled dry-run should count raw TWSE adapter records");
+  assert.equal(twseRun.recordsWritten, 1, "sampled dry-run should count transformed TWSE records");
+  assert.equal(mopsRun.recordsSeen, 1, "sampled dry-run should count raw MOPS adapter records");
+  assert.equal(mopsRun.recordsWritten, 1, "sampled dry-run should count transformed MOPS records");
+  assert.ok(Array.isArray(sampledDryRun.transformedRows), "sampled dry-run should return transformed rows");
+  assert.ok(
+    sampledDryRun.transformedRows.some(row =>
+      row.providerId === "twse-daily-prices" &&
+      row.table === "daily_prices" &&
+      row.record.provider === "TWSE OpenAPI"
+    ),
+    "sampled dry-run should transform TWSE rows with provider metadata"
+  );
+  assert.ok(
+    sampledDryRun.transformedRows.some(row =>
+      row.providerId === "mops-filings-events" &&
+      row.table === "filings" &&
+      row.record.company_id === "tsmc"
+    ),
+    "sampled dry-run should transform MOPS rows with normalized company ids"
+  );
+
   const failedState = {
     feedStatuses: [],
     ingestionRuns: [

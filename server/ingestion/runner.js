@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ingestionProviderContracts } from "./providerContracts.js";
+import { transformProviderRecord } from "./transforms.js";
 
 export const DEFAULT_INGESTION_STATE_FILE = fileURLToPath(new URL("../data/ingestion-state.local.json", import.meta.url));
 
@@ -55,7 +56,7 @@ function makeFeedStatus(contract, missing, timestamp) {
   };
 }
 
-function makeRun(contract, missing, timestamp) {
+function makeRun(contract, missing, timestamp, { recordsSeen = 0, recordsWritten = 0 } = {}) {
   const skipped = missing.length > 0;
   return {
     id: `${contract.id}-${timestamp}`,
@@ -65,8 +66,8 @@ function makeRun(contract, missing, timestamp) {
     status: skipped ? "skipped" : "succeeded",
     startedAt: timestamp,
     finishedAt: timestamp,
-    recordsSeen: 0,
-    recordsWritten: 0,
+    recordsSeen: skipped ? 0 : recordsSeen,
+    recordsWritten: skipped ? 0 : recordsWritten,
     missingSecrets: missing,
     outputTables: contract.outputTables || [],
     licenseBoundary: contract.licenseBoundary,
@@ -77,16 +78,38 @@ function makeRun(contract, missing, timestamp) {
 export async function runIngestionDryRun({
   stateFile = DEFAULT_INGESTION_STATE_FILE,
   env = process.env,
-  now = () => new Date()
+  now = () => new Date(),
+  adapterSamples = {}
 } = {}) {
   const timestamp = now().toISOString();
   const previous = await loadIngestionState(stateFile);
   const runs = [];
   const feedStatuses = [];
+  const transformedRows = [];
 
   for (const contract of ingestionProviderContracts) {
     const missing = missingSecrets(contract, env);
-    runs.push(makeRun(contract, missing, timestamp));
+    const samples = Array.isArray(adapterSamples[contract.id])
+      ? adapterSamples[contract.id]
+      : Array.isArray(adapterSamples[contract.feedType])
+        ? adapterSamples[contract.feedType]
+        : [];
+    const transformed = missing.length
+      ? []
+      : samples.map(sample => ({
+        providerId: contract.id,
+        feedType: contract.feedType,
+        ...transformProviderRecord({
+          ...sample,
+          feedType: sample.feedType || contract.feedType,
+          provider: sample.provider || contract.provider
+        })
+      }));
+    transformedRows.push(...transformed);
+    runs.push(makeRun(contract, missing, timestamp, {
+      recordsSeen: samples.length,
+      recordsWritten: transformed.length
+    }));
     feedStatuses.push(makeFeedStatus(contract, missing, timestamp));
   }
 
@@ -95,7 +118,7 @@ export async function runIngestionDryRun({
     ingestionRuns: [...runs, ...previous.ingestionRuns].slice(0, 200)
   };
   await saveIngestionState(stateFile, state);
-  return { ...state, runs };
+  return { ...state, runs, transformedRows };
 }
 
 function isRateLimitRun(run) {
