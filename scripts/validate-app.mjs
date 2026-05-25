@@ -249,6 +249,8 @@ const fetchImpl = async (url, options = {}) => {
           providersSkipped: 1,
           providersFailed: 2,
           providersRateLimited: 1,
+          recordsSeen: 128,
+          recordsWritten: 124,
           latestRunAt: "2026-05-23T06:00:00Z"
         },
         alerts: [
@@ -336,6 +338,8 @@ assert.equal(heatmapPayload.rows[0].label, "API Advanced Packaging", "frontend A
 
 const ingestionStatusPayload = await fetchIngestionStatus({ baseUrl: apiConfig.baseUrl, fetchImpl });
 assert.equal(ingestionStatusPayload.summary.providersRateLimited, 1, "frontend API client should fetch ingestion rate-limit summary");
+assert.equal(ingestionStatusPayload.summary.recordsSeen, 128, "frontend API client should preserve ingestion records seen");
+assert.equal(ingestionStatusPayload.summary.recordsWritten, 124, "frontend API client should preserve ingestion records written");
 assert.equal(ingestionStatusPayload.alerts[0].code, "rate-limit", "frontend API client should preserve ingestion alert codes");
 
 const notesPayload = await fetchNotes({
@@ -693,6 +697,8 @@ assert.ok(apiOverviewHtml.includes("TWSE delayed"), "overview API heatmap should
 assert.ok(apiOverviewHtml.includes("ingestion-monitoring-panel"), "overview should render ingestion monitoring panel when status is loaded");
 assert.ok(apiOverviewHtml.includes("sec-edgar-filings") && apiOverviewHtml.includes("rate-limit"), "overview ingestion panel should expose provider and alert code");
 assert.ok(apiOverviewHtml.includes("Apply provider-specific backoff"), "overview ingestion panel should show actionable remediation");
+assert.ok(apiOverviewHtml.includes("Records seen") && apiOverviewHtml.includes("128"), "overview ingestion panel should show records seen throughput");
+assert.ok(apiOverviewHtml.includes("Records written") && apiOverviewHtml.includes("124"), "overview ingestion panel should show records written throughput");
 assert.ok(
   appCss.includes(".ingestion-health-grid") &&
     appCss.includes("repeat(4, minmax(0, 1fr))"),

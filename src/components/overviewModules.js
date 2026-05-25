@@ -76,7 +76,9 @@ function ingestionMonitoringPanel(ingestionStatus) {
     ["Providers", summary.providersTotal ?? 0, "configured ingestion contracts"],
     ["Succeeded", summary.providersSucceeded ?? 0, "latest provider runs"],
     ["Failed", summary.providersFailed ?? 0, "requires operator review"],
-    ["Rate limits", summary.providersRateLimited ?? 0, "backoff / vendor reset needed"]
+    ["Rate limits", summary.providersRateLimited ?? 0, "backoff / vendor reset needed"],
+    ["Records seen", summary.recordsSeen ?? 0, "raw adapter records inspected"],
+    ["Records written", summary.recordsWritten ?? 0, "records transformed for storage"]
   ];
 
   return `

@@ -179,6 +179,8 @@ export function summarizeIngestionState(state = emptyState()) {
   const providersSkipped = latestRuns.filter(run => run.status === "skipped").length;
   const providersFailed = latestRuns.filter(run => run.status === "failed").length;
   const providersRateLimited = latestRuns.filter(isRateLimitRun).length;
+  const recordsSeen = latestRuns.reduce((total, run) => total + Number(run.recordsSeen || 0), 0);
+  const recordsWritten = latestRuns.reduce((total, run) => total + Number(run.recordsWritten || 0), 0);
   const alerts = latestRuns.map(alertForRun).filter(Boolean);
 
   return {
@@ -187,6 +189,8 @@ export function summarizeIngestionState(state = emptyState()) {
     providersSkipped,
     providersFailed,
     providersRateLimited,
+    recordsSeen,
+    recordsWritten,
     latestRunAt: latestRuns[0]?.finishedAt || null,
     alerts
   };

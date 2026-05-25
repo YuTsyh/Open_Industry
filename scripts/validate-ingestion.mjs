@@ -180,6 +180,9 @@ try {
   assert.equal(mopsRun.recordsSeen, 1, "sampled dry-run should count raw MOPS adapter records");
   assert.equal(mopsRun.recordsWritten, 1, "sampled dry-run should count transformed MOPS records");
   assert.ok(Array.isArray(sampledDryRun.transformedRows), "sampled dry-run should return transformed rows");
+  const sampledSummary = summarizeIngestionState(sampledDryRun);
+  assert.equal(sampledSummary.recordsSeen, 2, "summary should total latest adapter records seen");
+  assert.equal(sampledSummary.recordsWritten, 2, "summary should total latest transformed records written");
   assert.ok(
     sampledDryRun.transformedRows.some(row =>
       row.providerId === "twse-daily-prices" &&
@@ -246,6 +249,8 @@ try {
     const { response, body } = await request(`http://127.0.0.1:${port}`, "/api/ingestion/status");
     assert.equal(response.status, 200);
     assert.equal(body.summary.providersTotal, ingestionProviderContracts.length);
+    assert.equal(body.summary.recordsSeen, 2, "API should expose total records seen across latest provider runs");
+    assert.equal(body.summary.recordsWritten, 2, "API should expose total records written across latest provider runs");
     assert.ok(Array.isArray(body.feedStatuses) && body.feedStatuses.length > 0, "API should expose feed statuses");
     assert.ok(Array.isArray(body.recentRuns) && body.recentRuns.length > 0, "API should expose recent ingestion runs");
     assert.ok(body.alerts.some(alert => alert.level === "warning"), "API should expose monitoring alerts");
