@@ -16,6 +16,7 @@ import {
   loadIngestionState,
   summarizeIngestionState
 } from "../ingestion/runner.js";
+import { normalizeEventLinks } from "../ingestion/normalization.js";
 
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
 const NOTE_ENTITY_TYPES = new Set(["company", "industry", "technology"]);
@@ -260,6 +261,24 @@ function companyFeedStatuses(companyId) {
   ];
 }
 
+function normalizedLinkedEvent(event, linkHints = {}) {
+  const normalized = normalizeEventLinks({ ...event, ...linkHints });
+  const {
+    companyIds,
+    industryIds,
+    technologyIds,
+    tickers,
+    ticker,
+    symbol,
+    issuerTicker,
+    issuerSymbol,
+    industries: linkedIndustryAliases,
+    technologies: linkedTechnologyAliases,
+    ...publicEvent
+  } = normalized;
+  return publicEvent;
+}
+
 function technologyAnnouncementItems(technologyId, { companyId } = {}) {
   const tech = technologyCatalog[technologyId];
   if (!tech) return [];
@@ -268,7 +287,7 @@ function technologyAnnouncementItems(technologyId, { companyId } = {}) {
   return evidence.map((item, index) => {
     const sourceKey = typeof item === "string" ? item : item.sourceKeys?.[0];
     const source = sourceKey ? officialSources[sourceKey] : null;
-    return {
+    return normalizedLinkedEvent({
       id: `${technologyId}-${index + 1}`,
       title: typeof item === "string" ? `${tech.name} source update` : item.title,
       summary: typeof item === "string" ? tech.summary : item.detail,
@@ -276,11 +295,12 @@ function technologyAnnouncementItems(technologyId, { companyId } = {}) {
       sourceUrl: source?.url || "",
       provider: source?.label || "official source",
       confidence: "source",
-      publishedAt: null,
-      linkedCompanyIds: companyId ? [companyId] : [],
-      linkedIndustryIds: tech.relatedIndustries || [],
-      linkedTechnologyIds: [technologyId]
-    };
+      publishedAt: null
+    }, {
+      companyIds: companyId ? [companyId] : [],
+      industryIds: tech.relatedIndustries || [],
+      technologyIds: [technologyId]
+    });
   });
 }
 
@@ -306,7 +326,7 @@ function filingItems({ companyId, industryId } = {}) {
   const sourceInfo = firstSource(company, ["mops", "secEdgar", "jpxListedCompanySearch"]);
   const titleName = company?.name || industries[industryId]?.name || "Industry";
   return [
-    {
+    normalizedLinkedEvent({
       id: `${companyId || industryId || "global"}-filing-1`,
       companyId: companyId || null,
       filingType: "provider-ready",
@@ -315,7 +335,10 @@ function filingItems({ companyId, industryId } = {}) {
       sourceUrl: sourceInfo.source?.url || "",
       provider: sourceInfo.source?.label || "official filing provider",
       extractedSummary: "Provider-ready filing card. Connect MOPS, JPX, SEC EDGAR, or a licensed vendor to replace this source-backed placeholder."
-    }
+    }, {
+      companyIds: companyId ? [companyId] : [],
+      industryIds: industryId ? [industryId] : []
+    })
   ];
 }
 
@@ -324,18 +347,19 @@ function newsItems({ companyId, industryId, technologyId } = {}) {
   const sourceInfo = firstSource(company, ["mops", "secEdgar", "tsmc3dFabric"]);
   const titleName = company?.name || industries[industryId]?.name || technologyCatalog[technologyId]?.name || "Research";
   return [
-    {
+    normalizedLinkedEvent({
       id: `${companyId || industryId || technologyId || "global"}-news-1`,
       title: `${titleName} news watch item`,
       publishedAt: null,
       sourceUrl: sourceInfo.source?.url || "",
       sourceType: "provider-ready",
       provider: sourceInfo.source?.label || "official news provider",
-      summary: "Provider-ready news card. Licensed news ingestion can replace this placeholder while preserving source URL and linked entity ids.",
-      linkedCompanyIds: companyId ? [companyId] : [],
-      linkedIndustryIds: industryId ? [industryId] : [],
-      linkedTechnologyIds: technologyId ? [technologyId] : []
-    }
+      summary: "Provider-ready news card. Licensed news ingestion can replace this placeholder while preserving source URL and linked entity ids."
+    }, {
+      companyIds: companyId ? [companyId] : [],
+      industryIds: industryId ? [industryId] : [],
+      technologyIds: technologyId ? [technologyId] : []
+    })
   ];
 }
 
@@ -641,10 +665,12 @@ async function handleRequest(request, response, options) {
   const technologyAnnouncementsMatch = url.pathname.match(/^\/api\/live\/technology\/([^/]+)\/announcements$/);
   if (request.method === "GET" && technologyAnnouncementsMatch) {
     const technologyId = technologyAnnouncementsMatch[1];
+    const companyId = url.searchParams.get("companyId");
     if (!technologyCatalog[technologyId]) return routeError(response, 404, "technology not found");
+    if (companyId && !companies[companyId]) return routeError(response, 404, "company not found");
     return sendJson(response, 200, {
       technologyId,
-      items: technologyAnnouncementItems(technologyId),
+      items: technologyAnnouncementItems(technologyId, { companyId }),
       providerStatuses: [providerStatus({
         feedType: "technology_announcements",
         provider: "official company technology sources",

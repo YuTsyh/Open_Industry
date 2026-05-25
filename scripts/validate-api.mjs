@@ -102,11 +102,13 @@ try {
   }
 
   {
-    const { response, body } = await request(baseUrl, "/api/live/technology/cowos/announcements");
+    const { response, body } = await request(baseUrl, "/api/live/technology/cowos/announcements?companyId=tsmc");
     assert.equal(response.status, 200);
     assert.equal(body.technologyId, "cowos");
     assert.ok(body.items.length >= 1, "technology announcements should return source-backed items");
     assert.ok(body.items[0].sourceUrl, "technology announcement should keep source URL");
+    assert.deepEqual(body.items[0].linkedCompanyIds, ["tsmc"], "technology announcements should normalize scoped company ids");
+    assert.deepEqual(body.items[0].linkedTechnologyIds, ["cowos"], "technology announcements should normalize technology ids");
   }
 
   {
@@ -114,6 +116,13 @@ try {
     assert.equal(response.status, 200);
     assert.ok(body.items.length >= 1, "filings endpoint should return source-backed filing cards");
     assert.ok(body.items[0].title && body.items[0].sourceUrl, "filing cards should include title and source URL");
+    assert.deepEqual(body.items[0].linkedCompanyIds, ["tsmc"], "company filings should normalize linked company ids");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/filings?industryId=advanced-packaging");
+    assert.equal(response.status, 200);
+    assert.deepEqual(body.items[0].linkedIndustryIds, ["advanced-packaging"], "industry filings should normalize linked industry ids");
   }
 
   {
@@ -121,6 +130,7 @@ try {
     assert.equal(response.status, 200);
     assert.ok(body.items.length >= 1, "news endpoint should return source-backed event cards");
     assert.ok(body.items[0].title && body.items[0].sourceUrl, "news cards should include title and source URL");
+    assert.deepEqual(body.items[0].linkedCompanyIds, ["tsmc"], "company news should normalize linked company ids");
   }
 
   {
