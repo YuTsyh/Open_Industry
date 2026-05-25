@@ -166,6 +166,41 @@ function providerStatus({ feedType, provider, status, market, entityType, entity
   };
 }
 
+function sourceLabels(keys = [], fallback = "provider slot") {
+  const labels = keys
+    .map(key => officialSources[key]?.label)
+    .filter(Boolean);
+  return labels.length ? labels.join(" / ") : fallback;
+}
+
+function optionsLicenseBoundary() {
+  return "Options chain, open interest, volume, and greeks must come from OCC, Cboe, or another licensed vendor through backend ingestion.";
+}
+
+function optionsAvailability(company) {
+  if (!company) {
+    return {
+      status: "provider-ready",
+      market: null,
+      provider: "OCC/Cboe or licensed options vendor",
+      reason: "Pass a companyId to scope options availability to a covered underlying.",
+      licenseBoundary: optionsLicenseBoundary(),
+      sourceIds: []
+    };
+  }
+
+  const feed = company.liveFeeds?.options || {};
+  const status = statusFromFeed(feed);
+  return {
+    status,
+    market: company.market,
+    provider: sourceLabels(feed.sourceKeys || [], status === "not-available" ? "listed options coverage unavailable" : "OCC/Cboe or licensed options vendor"),
+    reason: feed.cadence || (status === "not-available" ? "Listed options coverage is not available for this company in the configured provider set." : "Licensed options ingestion is not configured yet."),
+    licenseBoundary: optionsLicenseBoundary(),
+    sourceIds: feed.sourceKeys || []
+  };
+}
+
 function companyFeedStatuses(companyId) {
   const company = companies[companyId];
   if (!company) return [];
@@ -586,12 +621,20 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && url.pathname === "/api/live/options") {
     const companyId = url.searchParams.get("companyId");
     const company = companyId ? companies[companyId] : null;
+    if (companyId && !company) return routeError(response, 404, "company not found");
+    const availability = optionsAvailability(company);
     return sendJson(response, 200, {
       underlying: company ? { companyId, ticker: company.ticker, market: company.market } : null,
       chain: [],
-      providerStatuses: company
-        ? companyFeedStatuses(companyId).filter(item => item.feedType === "options")
-        : [providerStatus({ feedType: "options", provider: "OCC/Cboe or licensed options vendor", status: "provider-ready" })]
+      availability,
+      providerStatuses: [providerStatus({
+        feedType: "options",
+        provider: availability.provider,
+        market: company?.market,
+        entityType: company ? "company" : "global",
+        entityId: companyId || "",
+        status: availability.status
+      })]
     });
   }
 

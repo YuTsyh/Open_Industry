@@ -102,7 +102,7 @@ export const apiRoutes = [
     auth: "optional",
     queryParams: ["companyId", "expiration", "limit"],
     backingTables: ["companies", "option_chains", "feed_statuses"],
-    responseFields: ["underlying", "chain", "providerStatuses"],
+    responseFields: ["underlying", "chain", "availability", "availability.status", "availability.licenseBoundary", "providerStatuses"],
     dataPolicy: "Options data must come from OCC, Cboe, or a licensed vendor and must not be fetched directly from browser code."
   },
   {

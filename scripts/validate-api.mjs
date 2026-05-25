@@ -131,6 +131,30 @@ try {
   }
 
   {
+    const { response, body } = await request(baseUrl, "/api/live/options?companyId=tsmc");
+    assert.equal(response.status, 200);
+    assert.equal(body.underlying.market, "TW");
+    assert.equal(body.availability.status, "not-available", "TW company options should be explicit when listed options coverage is unavailable");
+    assert.match(body.availability.reason, /listed options coverage/i);
+    assert.equal(body.providerStatuses[0].status, "not-available");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/options?companyId=nvidia");
+    assert.equal(response.status, 200);
+    assert.equal(body.underlying.market, "US");
+    assert.equal(body.availability.status, "provider-ready", "US company options should remain provider-ready until licensed ingestion is configured");
+    assert.match(body.availability.licenseBoundary, /OCC|Cboe|licensed/i);
+    assert.ok(body.providerStatuses[0].provider.includes("Cboe"), "US options provider status should expose licensed provider labels");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/options?companyId=missing-company");
+    assert.equal(response.status, 404, "unknown company options requests should not fall through to a global provider-ready payload");
+    assert.match(body.error.message, /company not found/);
+  }
+
+  {
     const { response } = await request(baseUrl, "/api/notes?entityType=company&entityId=tsmc");
     assert.equal(response.status, 401, "notes list should require JWT auth");
   }
