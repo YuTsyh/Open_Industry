@@ -209,6 +209,65 @@ try {
     assert.equal(response.status, 200, "editor collaborators should update notes");
     assert.equal(body.note.bodyMarkdown, "- Editor update");
   }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/notes", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        entityType: "industry",
+        entityId: "advanced-packaging",
+        title: "Industry bottleneck thesis",
+        bodyMarkdown: "- Track substrate qualification",
+        visibility: "private"
+      })
+    });
+    assert.equal(response.status, 201, "notes API should create industry-attached notes");
+    assert.equal(body.note.entityType, "industry");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/notes?entityType=industry&entityId=advanced-packaging", {
+      headers: { authorization: `Bearer ${token}` }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(body.items.length, 1, "industry notes should be isolated by entity type and id");
+    assert.equal(body.items[0].title, "Industry bottleneck thesis");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/notes", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        entityType: "technology",
+        entityId: "cowos",
+        title: "CoWoS technical watch",
+        bodyMarkdown: "- Check interposer throughput",
+        visibility: "shared",
+        collaborators: [{ userId: "analyst-2", role: "reader" }]
+      })
+    });
+    assert.equal(response.status, 201, "notes API should create technology-attached notes");
+    assert.equal(body.note.entityType, "technology");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/notes?entityType=technology&entityId=cowos", {
+      headers: { authorization: `Bearer ${readerToken}` }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(body.items.length, 1, "technology notes should preserve shared collaborator visibility");
+    assert.equal(body.items[0].title, "CoWoS technical watch");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/notes?entityType=sector&entityId=advanced-packaging", {
+      headers: { authorization: `Bearer ${token}` }
+    });
+    assert.equal(response.status, 400, "notes list should reject unsupported entity types instead of returning a silent empty set");
+    assert.match(body.error.message, /invalid entityType/);
+  }
 } finally {
   await close(server);
   await rm(tempDir, { recursive: true, force: true });

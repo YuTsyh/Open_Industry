@@ -412,6 +412,9 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
   if (request.method === "GET" && url.pathname === "/api/notes") {
     const entityType = url.searchParams.get("entityType");
     const entityId = url.searchParams.get("entityId");
+    if (entityType && !NOTE_ENTITY_TYPES.has(entityType)) {
+      return routeError(response, 400, "invalid entityType");
+    }
     const items = data.notes
       .filter(note => {
         const matchesEntity = (!entityType || note.entityType === entityType) && (!entityId || note.entityId === entityId);
