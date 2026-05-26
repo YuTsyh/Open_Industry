@@ -16,7 +16,7 @@ import {
   loadIngestionState,
   summarizeIngestionState
 } from "../ingestion/runner.js";
-import { normalizeEventLinks } from "../ingestion/normalization.js";
+import { normalizeEventLinks, resolveCompanyId } from "../ingestion/normalization.js";
 import { ingestionProviderContracts } from "../ingestion/providerContracts.js";
 
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
@@ -156,6 +156,78 @@ function priceHistoryFromSnapshot(snapshot = {}) {
   ];
 }
 
+function priceRecordCompanyId(record = {}) {
+  return record.company_id || resolveCompanyId(record.ticker || record.symbol || "");
+}
+
+function numericPrice(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function persistedPriceRowsForCompany(ingestionState, companyId) {
+  return storedRows(ingestionState, "daily_prices")
+    .filter(row => priceRecordCompanyId(row.record) === companyId && numericPrice(row.record.close) != null)
+    .sort((a, b) => {
+      const aDate = a.record.trade_date || a.record.source_timestamp || "";
+      const bDate = b.record.trade_date || b.record.source_timestamp || "";
+      return String(aDate).localeCompare(String(bDate));
+    });
+}
+
+function priceSnapshotFromRows(rows = [], companyId) {
+  if (!rows.length) return null;
+
+  const fallback = companies[companyId]?.liveFeeds?.priceSnapshot || {};
+  const latest = rows[rows.length - 1].record;
+  const previous = rows.length > 1 ? rows[rows.length - 2].record : null;
+  const last = numericPrice(latest.close);
+  if (last == null) return null;
+
+  const previousClose = numericPrice(previous?.close);
+  const change = previousClose == null ? null : Number((last - previousClose).toFixed(2));
+  const changePercent = previousClose ? Number(((change / previousClose) * 100).toFixed(2)) : null;
+  const sourceTime = latest.source_timestamp || latest.trade_date || null;
+
+  return {
+    status: "available",
+    last,
+    change,
+    changePercent,
+    currency: fallback.currency || "",
+    asOf: sourceTime,
+    provider: latest.provider || "price provider slot",
+    sourceTimestamp: sourceTime,
+    sourceKeys: companies[companyId]?.liveFeeds?.price?.sourceKeys || fallback.sourceKeys || []
+  };
+}
+
+function priceHistoryFromRows(rows = []) {
+  return rows.map(row => {
+    const record = row.record;
+    return {
+      date: record.trade_date || record.source_timestamp || "latest",
+      close: numericPrice(record.close),
+      provider: record.provider || "price provider slot",
+      sourceTimestamp: record.source_timestamp || record.trade_date || null,
+      status: "available",
+      sourceIds: []
+    };
+  });
+}
+
+function persistedPriceSnapshotForCompany(ingestionState, companyId) {
+  return priceSnapshotFromRows(persistedPriceRowsForCompany(ingestionState, companyId), companyId);
+}
+
+function persistedPriceSnapshotsByCompany(ingestionState) {
+  return Object.fromEntries(
+    Object.keys(companies)
+      .map(companyId => [companyId, persistedPriceSnapshotForCompany(ingestionState, companyId)])
+      .filter(([, snapshot]) => snapshot)
+  );
+}
+
 function providerStatus({ feedType, provider, status, market, entityType, entityId, latestSourceTimestamp, latestSuccessAt, updatedAt }) {
   const sourceTime = latestSourceTimestamp || null;
   const successTime = latestSuccessAt || sourceTime;
@@ -247,12 +319,12 @@ function optionsAvailability(company) {
   };
 }
 
-function companyFeedStatuses(companyId, ingestionState = null) {
+function companyFeedStatuses(companyId, ingestionState = null, priceSnapshot = null) {
   const company = companies[companyId];
   if (!company) return [];
 
   const feeds = company.liveFeeds || {};
-  const snapshot = feeds.priceSnapshot || {};
+  const snapshot = priceSnapshot || feeds.priceSnapshot || {};
   const fallbackStatuses = [
     providerStatus({
       feedType: "price",
@@ -339,7 +411,7 @@ function normalizedLinkedEvent(event, linkHints = {}) {
 }
 
 function storedRows(ingestionState = {}, table) {
-  return (ingestionState.transformedRows || [])
+  return (ingestionState?.transformedRows || [])
     .filter(row => row.table === table && row.record)
     .map((row, index) => ({ ...row, index }));
 }
@@ -727,7 +799,8 @@ async function handleRequest(request, response, options) {
     const company = companies[companyId];
     if (!company) return routeError(response, 404, "company not found");
     const ingestionState = await loadIngestionState(options.ingestionStateFile);
-    const snapshot = company.liveFeeds?.priceSnapshot || {};
+    const priceRows = persistedPriceRowsForCompany(ingestionState, companyId);
+    const snapshot = priceSnapshotFromRows(priceRows, companyId) || company.liveFeeds?.priceSnapshot || {};
     const status = statusFromFeed(company.liveFeeds?.price, snapshot);
     return sendJson(response, 200, {
       companyId,
@@ -737,9 +810,9 @@ async function handleRequest(request, response, options) {
       sourceTimestamp: sourceTimestamp(snapshot),
       asOf: snapshot.asOf || null,
       snapshot,
-      history: priceHistoryFromSnapshot(snapshot),
+      history: priceRows.length ? priceHistoryFromRows(priceRows) : priceHistoryFromSnapshot(snapshot),
       trend: trendFromSnapshot(snapshot, status),
-      providerStatuses: [companyFeedStatuses(companyId, ingestionState)[0]]
+      providerStatuses: [companyFeedStatuses(companyId, ingestionState, snapshot)[0]]
     });
   }
 
@@ -761,10 +834,11 @@ async function handleRequest(request, response, options) {
     const company = publicCompany(companyId);
     if (!company) return routeError(response, 404, "company not found");
     const ingestionState = await loadIngestionState(options.ingestionStateFile);
-    const feedStatuses = companyFeedStatuses(companyId, ingestionState);
+    const priceSnapshot = persistedPriceSnapshotForCompany(ingestionState, companyId) || companies[companyId].liveFeeds?.priceSnapshot || null;
+    const feedStatuses = companyFeedStatuses(companyId, ingestionState, priceSnapshot);
     return sendJson(response, 200, {
       company,
-      priceSnapshot: companies[companyId].liveFeeds?.priceSnapshot || null,
+      priceSnapshot,
       feedStatuses,
       latestFilings: filingItems({ companyId }, ingestionState),
       latestNews: newsItems({ companyId }, ingestionState),
@@ -777,7 +851,12 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && url.pathname === "/api/live/heatmap") {
     const period = url.searchParams.get("period") || "latest";
     const universe = url.searchParams.get("universe") || "cap";
-    const rows = buildLiveHeatmapRows({ rangeId: period, universeId: universe });
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const rows = buildLiveHeatmapRows({
+      rangeId: period,
+      universeId: universe,
+      companySnapshots: persistedPriceSnapshotsByCompany(ingestionState)
+    });
     const providerStatuses = rows.map(row => providerStatus({
       feedType: "price",
       provider: row.sourceLabel,

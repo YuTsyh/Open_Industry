@@ -103,9 +103,10 @@ export function liveDataReadinessPanel() {
   `;
 }
 
-export function companyLiveFeedPanel(company, apiLive = null) {
+export function companyLiveFeedPanel(company, apiLive = null, apiPrice = null) {
   const feeds = Object.entries(company.liveFeeds || {}).filter(([type]) => type !== "priceSnapshot");
   if (!feeds.length && !company.liveFeeds?.priceSnapshot) return "";
+  const priceSnapshot = apiPrice?.snapshot || company.liveFeeds?.priceSnapshot;
 
   return `
     <section class="panel live-feed-panel">
@@ -119,7 +120,7 @@ export function companyLiveFeedPanel(company, apiLive = null) {
       </div>
       <div class="live-feed-grid">
         ${apiLiveStatusPanel(apiLive)}
-        ${priceSnapshotCard(company.liveFeeds?.priceSnapshot)}
+        ${priceSnapshotCard(priceSnapshot)}
         ${feeds.map(([type, feed]) => `
           <article class="live-feed-card ${feed.status === "not-applicable" ? "is-muted" : ""}">
             <div class="live-feed-title">

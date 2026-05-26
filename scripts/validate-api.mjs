@@ -69,6 +69,40 @@ await writeFile(ingestionStateFile, `${JSON.stringify({
   ],
   transformedRows: [
     {
+      providerId: "twse-prices",
+      feedType: "price",
+      table: "daily_prices",
+      record: {
+        market: "TW",
+        ticker: "2330.TW",
+        trade_date: "2026-05-23",
+        open: 2380,
+        high: 2420,
+        low: 2375,
+        close: 2400,
+        volume: 28000000,
+        provider: "TWSE OpenAPI",
+        source_timestamp: "2026-05-23T06:00:00Z"
+      }
+    },
+    {
+      providerId: "twse-prices",
+      feedType: "price",
+      table: "daily_prices",
+      record: {
+        market: "TW",
+        ticker: "2330.TW",
+        trade_date: "2026-05-24",
+        open: 2450,
+        high: 2510,
+        low: 2440,
+        close: 2500,
+        volume: 31000000,
+        provider: "TWSE OpenAPI",
+        source_timestamp: "2026-05-24T06:00:00Z"
+      }
+    },
+    {
       providerId: "mops-filings-events",
       feedType: "filings",
       table: "filings",
@@ -155,6 +189,8 @@ try {
     assert.equal(response.status, 200);
     assert.equal(body.company.id, "tsmc");
     assert.ok(body.priceSnapshot.provider, "company live response should include price provider");
+    assert.equal(body.priceSnapshot.provider, "TWSE OpenAPI", "company live response should prefer persisted daily price provider");
+    assert.equal(body.priceSnapshot.last, 2500, "company live response should expose latest persisted close");
     assert.ok(Array.isArray(body.feedStatuses), "company live response should include provider statuses");
     const priceStatus = body.feedStatuses.find(item => item.feedType === "price");
     assert.ok(priceStatus?.latestSourceTimestamp, "company live provider status should expose source freshness timing");
@@ -176,9 +212,13 @@ try {
     assert.equal(body.providerStatuses[0].status, "delayed");
     assert.equal(body.providerStatuses[0].provider, "TWSE OpenAPI", "price provider status should use persisted ingestion feed provider");
     assert.equal(body.providerStatuses[0].latestSourceTimestamp, "2026-05-24T06:00:00Z", "price provider status should use persisted ingestion source time");
+    assert.equal(body.snapshot.provider, "TWSE OpenAPI", "price response should prefer persisted daily price provider");
+    assert.equal(body.snapshot.last, 2500, "price response should expose latest persisted close");
+    assert.deepEqual(body.snapshot.sourceKeys, ["twseOpenApi"], "price response should keep licensed feed source keys for persisted daily prices");
+    assert.equal(body.trend.changePercent, 4.17, "price response should derive trend from persisted daily closes");
     assert.ok(body.snapshot.sourceTimestamp || body.snapshot.asOf, "price response should expose source timing");
     assert.ok(body.snapshot.provider, "price response should expose provider");
-    assert.ok(body.history.length >= 1, "price response should include at least one source-backed point for mini charts");
+    assert.deepEqual(body.history.map(point => point.close), [2400, 2500], "price response should expose persisted closes in chart order");
     assert.ok(body.history.every(point => point.provider && point.sourceTimestamp), "price history points should keep provider and source timing");
     assert.ok(body.trend.label && body.trend.status, "price response should expose trend metadata");
   }
@@ -189,6 +229,8 @@ try {
     assert.equal(body.period, "latest");
     assert.ok(body.rows.length >= 3, "heatmap should return industry rows");
     assert.ok(body.providerStatuses.every(item => item.provider && item.status), "heatmap should include provider status metadata");
+    const advancedPackaging = body.rows.find(row => row.id === "advanced-packaging");
+    assert.match(advancedPackaging?.sourceLabel || "", /TWSE OpenAPI/, "heatmap should use persisted daily price providers when available");
   }
 
   {
@@ -255,6 +297,33 @@ try {
     const { response, body } = await request(baseUrl, "/api/live/options?companyId=missing-company");
     assert.equal(response.status, 404, "unknown company options requests should not fall through to a global provider-ready payload");
     assert.match(body.error.message, /company not found/);
+  }
+
+  await writeFile(ingestionStateFile, `${JSON.stringify({
+    feedStatuses: [],
+    transformedRows: [
+      {
+        providerId: "twse-prices",
+        feedType: "price",
+        table: "daily_prices",
+        record: {
+          market: "TW",
+          ticker: "2330.TW",
+          trade_date: "2026-05-24",
+          close: 2500,
+          provider: "TWSE OpenAPI",
+          source_timestamp: "2026-05-24T06:00:00Z"
+        }
+      }
+    ],
+    ingestionRuns: []
+  }, null, 2)}\n`, "utf8");
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/company/tsmc");
+    assert.equal(response.status, 200, "company live response should tolerate price-only ingestion state");
+    assert.equal(body.priceSnapshot.provider, "TWSE OpenAPI", "company live price should still use the persisted price row");
+    assert.ok(Array.isArray(body.latestTechnologyAnnouncements), "company live fallback announcements should remain available without persisted technology rows");
   }
 
   {

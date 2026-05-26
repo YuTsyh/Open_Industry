@@ -7,8 +7,7 @@ function numeric(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function snapshotReturn(company, rangeId) {
-  const snapshot = company.liveFeeds?.priceSnapshot;
+function snapshotReturn(snapshot, rangeId) {
   if (!snapshot || snapshot.status !== "available") return null;
   if (rangeId && rangeId !== "latest" && snapshot.rangeReturns?.[rangeId] != null) {
     return numeric(snapshot.rangeReturns[rangeId]);
@@ -44,16 +43,19 @@ function rankedCompaniesForIndustry(industryId, universeId) {
   return ranked.sort((a, b) => (b.company.exposure || 0) - (a.company.exposure || 0));
 }
 
-export function buildLiveHeatmapRows({ universeId = "cap", rangeId = "latest" } = {}) {
+export function buildLiveHeatmapRows({ universeId = "cap", rangeId = "latest", companySnapshots = {} } = {}) {
   return orderedIndustryIds(universeId).map(industryId => {
     const industry = industries[industryId];
     const ranked = rankedCompaniesForIndustry(industryId, universeId);
     const priced = ranked
-      .map(item => ({
-        ...item,
-        returnPct: snapshotReturn(item.company, rangeId),
-        snapshot: item.company.liveFeeds?.priceSnapshot || {}
-      }))
+      .map(item => {
+        const snapshot = companySnapshots[item.id] || item.company.liveFeeds?.priceSnapshot || {};
+        return {
+          ...item,
+          returnPct: snapshotReturn(snapshot, rangeId),
+          snapshot
+        };
+      })
       .filter(item => item.returnPct != null);
 
     const weighted = priced.reduce((sum, item) => {

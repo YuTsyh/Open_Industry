@@ -135,7 +135,7 @@ export function renderCompany(state) {
       </div>
 
       ${exposureGrid(company)}
-      ${companyLiveFeedPanel(company, apiLive)}
+      ${companyLiveFeedPanel(company, apiLive, apiPrice)}
       ${relationshipGraph(company, companyId)}
       ${renderCompanyTabs(company, state.companyTab || "role", state)}
       <footer class="disclaimer">For research and educational use only. Not investment advice. 價格與曝險分數為研究介面資料，不代表投資建議。</footer>

@@ -807,6 +807,7 @@ const apiCompanyPriceHtml = renderRoute({
 });
 assert.ok(apiCompanyPriceHtml.includes("price-trend-mini"), "company header should render API price trend mini-chart");
 assert.ok(apiCompanyPriceHtml.includes("+2.67%") && apiCompanyPriceHtml.includes("TWSE delayed"), "company price trend should show performance and source");
+assert.ok(!apiCompanyPriceHtml.includes("Yahoo Taiwan / TWSE delayed quote"), "company live-feed panel should not show stale static price snapshots when API price is loaded");
 
 const apiLandscapeHtml = renderRoute({
   ...requiredState,
