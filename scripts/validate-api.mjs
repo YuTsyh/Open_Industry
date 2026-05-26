@@ -65,6 +65,28 @@ await writeFile(ingestionStateFile, `${JSON.stringify({
       latestSuccessAt: "2026-05-23T03:05:00Z",
       updatedAt: "2026-05-24T03:10:00Z",
       errorMessage: "MOPS parser changed"
+    },
+    {
+      feedType: "options",
+      provider: "Cboe U.S. options market data",
+      market: "US",
+      entityType: "company",
+      entityId: "nvidia",
+      status: "licensed",
+      latestSourceTimestamp: "2026-05-24T20:05:00Z",
+      latestSuccessAt: "2026-05-24T20:06:00Z",
+      updatedAt: "2026-05-24T20:07:00Z"
+    },
+    {
+      feedType: "meetings",
+      provider: "Licensed transcript provider",
+      market: "TW",
+      entityType: "company",
+      entityId: "tsmc",
+      status: "licensed",
+      latestSourceTimestamp: "2026-05-24T18:00:00Z",
+      latestSuccessAt: "2026-05-24T18:05:00Z",
+      updatedAt: "2026-05-24T18:06:00Z"
     }
   ],
   transformedRows: [
@@ -147,6 +169,44 @@ await writeFile(ingestionStateFile, `${JSON.stringify({
         linked_industry_ids: ["advanced-packaging"],
         linked_technology_ids: ["cowos"]
       }
+    },
+    {
+      providerId: "us-options",
+      feedType: "options",
+      table: "option_chains",
+      record: {
+        market: "US",
+        company_id: "nvidia",
+        underlying_ticker: "NVDA",
+        occ_symbol: "NVDA260620C00200000",
+        expiration: "2026-06-20",
+        strike: 200,
+        option_type: "call",
+        open_interest: 12000,
+        volume: 4200,
+        implied_volatility: 0.42,
+        provider: "Cboe U.S. options market data",
+        captured_at: "2026-05-24T20:05:00Z"
+      }
+    },
+    {
+      providerId: "licensed-transcripts",
+      feedType: "meetings",
+      table: "meetings",
+      record: {
+        company_id: "tsmc",
+        meeting_type: "technology_conference",
+        title: "Ingested TSMC technology conference transcript",
+        held_at: "2026-05-24T18:00:00Z",
+        source_url: "https://example.com/meeting",
+        transcript_url: "https://example.com/transcript",
+        summary: "Management discussed CoWoS capacity constraints.",
+        key_points: ["Track CoWoS capacity", "Track HBM allocation"],
+        linked_company_ids: ["tsmc"],
+        linked_industry_ids: ["advanced-packaging"],
+        linked_technology_ids: ["cowos"],
+        source_ids: ["mops"]
+      }
     }
   ],
   ingestionRuns: []
@@ -204,6 +264,7 @@ try {
     assert.equal(filingsStatus.updatedAt, "2026-05-24T03:10:00Z", "company live provider status should preserve persisted update timestamp");
     assert.ok(Array.isArray(body.latestTechnologyAnnouncements), "company live response should include technology announcements");
     assert.ok(Array.isArray(body.latestMeetings), "company live response should include meetings");
+    assert.equal(body.latestMeetings[0].title, "Ingested TSMC technology conference transcript", "company live response should prefer persisted meeting transcript rows");
   }
 
   {
@@ -272,6 +333,8 @@ try {
     const { response, body } = await request(baseUrl, "/api/live/company/tsmc/meetings");
     assert.equal(response.status, 200);
     assert.ok(body.items.length >= 1, "meetings endpoint should return transcript panel items");
+    assert.equal(body.items[0].title, "Ingested TSMC technology conference transcript", "meetings endpoint should prefer persisted transcript rows");
+    assert.deepEqual(body.items[0].keyPoints, ["Track CoWoS capacity", "Track HBM allocation"], "meeting transcript items should preserve key points");
     assert.ok(body.items[0].summary && body.items[0].sourceUrl, "meeting items should include summary and source URL");
   }
 
@@ -288,8 +351,10 @@ try {
     const { response, body } = await request(baseUrl, "/api/live/options?companyId=nvidia");
     assert.equal(response.status, 200);
     assert.equal(body.underlying.market, "US");
-    assert.equal(body.availability.status, "provider-ready", "US company options should remain provider-ready until licensed ingestion is configured");
+    assert.equal(body.availability.status, "licensed", "US company options should expose licensed status when persisted chains are loaded");
     assert.match(body.availability.licenseBoundary, /OCC|Cboe|licensed/i);
+    assert.equal(body.chain[0].occSymbol, "NVDA260620C00200000", "options endpoint should return persisted option chain contracts");
+    assert.equal(body.chain[0].openInterest, 12000, "options endpoint should preserve open interest");
     assert.ok(body.providerStatuses[0].provider.includes("Cboe"), "US options provider status should expose licensed provider labels");
   }
 

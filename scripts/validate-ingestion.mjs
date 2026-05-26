@@ -124,6 +124,44 @@ try {
   assert.deepEqual(announcementRow.record.linked_company_ids, ["tsmc"], "technology transformer should normalize linked company ids");
   assert.deepEqual(announcementRow.record.linked_technology_ids, ["cowos"], "technology transformer should normalize linked technology ids");
 
+  const optionRow = transformProviderRecord({
+    feedType: "options",
+    provider: "Cboe U.S. options market data",
+    market: "us",
+    ticker: "NVDA",
+    occSymbol: "NVDA260620C00200000",
+    expiration: "2026-06-20",
+    strike: "200",
+    optionType: "call",
+    openInterest: "12000",
+    volume: "4200",
+    impliedVolatility: "0.42",
+    capturedAt: "2026-05-24T20:05:00Z"
+  });
+  assert.equal(optionRow.table, "option_chains", "options transformer should target option_chains");
+  assert.equal(optionRow.record.company_id, "nvidia", "options transformer should normalize underlying ticker to company_id");
+  assert.equal(optionRow.record.option_type, "call", "options transformer should normalize option type");
+  assert.equal(optionRow.record.open_interest, 12000, "options transformer should coerce open interest");
+  assert.equal(optionRow.record.provider, "Cboe U.S. options market data", "options transformer should preserve licensed provider");
+
+  const meetingRow = transformProviderRecord({
+    feedType: "meetings",
+    sourceId: "secEdgar",
+    ticker: "NVDA",
+    meetingType: "technology_conference",
+    title: "NVIDIA technology conference transcript",
+    heldAt: "2026-05-24T18:00:00Z",
+    sourceUrl: "https://example.com/meeting",
+    transcriptUrl: "https://example.com/transcript",
+    summary: "Management discussed accelerator supply.",
+    keyPoints: ["Blackwell demand", "HBM allocation"],
+    technologyIds: ["HBM Integration"]
+  });
+  assert.equal(meetingRow.table, "meetings", "meetings transformer should target meetings");
+  assert.equal(meetingRow.record.company_id, "nvidia", "meetings transformer should map ticker to company_id");
+  assert.deepEqual(meetingRow.record.key_points, ["Blackwell demand", "HBM allocation"], "meetings transformer should preserve key points");
+  assert.deepEqual(meetingRow.record.linked_technology_ids, ["hbm-integration"], "meetings transformer should normalize linked technologies");
+
   const dryRun = await runIngestionDryRun({
     stateFile,
     env: {},
@@ -150,7 +188,7 @@ try {
 
   const sampledDryRun = await runIngestionDryRun({
     stateFile,
-    env: {},
+    env: { US_OPTIONS_DATA_API_KEY: "test-options-key" },
     now: () => new Date("2026-05-23T00:05:00.000Z"),
     adapterSamples: {
       "twse-daily-prices": [
@@ -170,6 +208,32 @@ try {
           title: "TSMC monthly revenue filing",
           sourceUrl: "https://example.com/filing"
         }
+      ],
+      "us-options": [
+        {
+          market: "us",
+          ticker: "NVDA",
+          occSymbol: "NVDA260620C00200000",
+          expiration: "2026-06-20",
+          strike: "200",
+          optionType: "call",
+          openInterest: "12000",
+          volume: "4200",
+          impliedVolatility: "0.42",
+          capturedAt: "2026-05-24T20:05:00Z"
+        }
+      ],
+      "sec-edgar-filings": [
+        {
+          feedType: "meetings",
+          ticker: "NVDA",
+          meetingType: "technology_conference",
+          title: "NVIDIA technology conference transcript",
+          sourceUrl: "https://example.com/meeting",
+          transcriptUrl: "https://example.com/transcript",
+          summary: "Management discussed accelerator supply.",
+          keyPoints: ["Blackwell demand", "HBM allocation"]
+        }
       ]
     }
   });
@@ -181,8 +245,8 @@ try {
   assert.equal(mopsRun.recordsWritten, 1, "sampled dry-run should count transformed MOPS records");
   assert.ok(Array.isArray(sampledDryRun.transformedRows), "sampled dry-run should return transformed rows");
   const sampledSummary = summarizeIngestionState(sampledDryRun);
-  assert.equal(sampledSummary.recordsSeen, 2, "summary should total latest adapter records seen");
-  assert.equal(sampledSummary.recordsWritten, 2, "summary should total latest transformed records written");
+  assert.equal(sampledSummary.recordsSeen, 4, "summary should total latest adapter records seen");
+  assert.equal(sampledSummary.recordsWritten, 4, "summary should total latest transformed records written");
   assert.ok(
     sampledDryRun.transformedRows.some(row =>
       row.providerId === "twse-daily-prices" &&
@@ -198,6 +262,22 @@ try {
       row.record.company_id === "tsmc"
     ),
     "sampled dry-run should transform MOPS rows with normalized company ids"
+  );
+  assert.ok(
+    sampledDryRun.transformedRows.some(row =>
+      row.providerId === "us-options" &&
+      row.table === "option_chains" &&
+      row.record.company_id === "nvidia"
+    ),
+    "sampled dry-run should transform licensed options rows for API queries"
+  );
+  assert.ok(
+    sampledDryRun.transformedRows.some(row =>
+      row.providerId === "sec-edgar-filings" &&
+      row.table === "meetings" &&
+      row.record.title === "NVIDIA technology conference transcript"
+    ),
+    "sampled dry-run should transform meeting transcript rows for API queries"
   );
   const sampledState = await loadIngestionState(stateFile);
   assert.ok(Array.isArray(sampledState.transformedRows), "ingestion state should expose persisted transformed rows");
@@ -259,8 +339,8 @@ try {
     const { response, body } = await request(`http://127.0.0.1:${port}`, "/api/ingestion/status");
     assert.equal(response.status, 200);
     assert.equal(body.summary.providersTotal, ingestionProviderContracts.length);
-    assert.equal(body.summary.recordsSeen, 2, "API should expose total records seen across latest provider runs");
-    assert.equal(body.summary.recordsWritten, 2, "API should expose total records written across latest provider runs");
+    assert.equal(body.summary.recordsSeen, 4, "API should expose total records seen across latest provider runs");
+    assert.equal(body.summary.recordsWritten, 4, "API should expose total records written across latest provider runs");
     assert.ok(Array.isArray(body.feedStatuses) && body.feedStatuses.length > 0, "API should expose feed statuses");
     assert.ok(Array.isArray(body.recentRuns) && body.recentRuns.length > 0, "API should expose recent ingestion runs");
     assert.ok(body.alerts.some(alert => alert.level === "warning"), "API should expose monitoring alerts");

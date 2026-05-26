@@ -512,6 +512,64 @@ function persistedTechnologyAnnouncementItems(ingestionState, technologyId, { co
     });
 }
 
+function persistedOptionChainItems(ingestionState, companyId) {
+  return sortedRows(storedRows(ingestionState, "option_chains"))
+    .filter(row => {
+      const record = row.record;
+      return record.company_id === companyId || resolveCompanyId(record.underlying_ticker || record.ticker || "") === companyId;
+    })
+    .map(row => {
+      const record = row.record;
+      return {
+        id: `${row.providerId || "options"}-${row.index + 1}`,
+        market: record.market || companies[companyId]?.market || null,
+        companyId: record.company_id || companyId,
+        underlyingTicker: record.underlying_ticker || companies[companyId]?.ticker || "",
+        occSymbol: record.occ_symbol || "",
+        expiration: record.expiration || null,
+        strike: record.strike ?? null,
+        optionType: record.option_type || "",
+        openInterest: record.open_interest ?? null,
+        volume: record.volume ?? null,
+        impliedVolatility: record.implied_volatility ?? null,
+        provider: record.provider || row.provider || "licensed options provider",
+        capturedAt: record.captured_at || null,
+        status: "licensed"
+      };
+    });
+}
+
+function optionsAvailabilityForChain(company, chain = []) {
+  const availability = optionsAvailability(company);
+  if (!chain.length) return availability;
+
+  return {
+    ...availability,
+    status: "licensed",
+    provider: chain[0].provider || availability.provider,
+    reason: "Licensed options chain loaded from backend ingestion.",
+    market: company?.market || availability.market
+  };
+}
+
+function optionStatusFromChain(companyId, chain = []) {
+  if (!chain.length) return null;
+  const latest = chain
+    .map(item => item.capturedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1) || null;
+  return providerStatus({
+    feedType: "options",
+    provider: chain[0].provider || "licensed options provider",
+    market: companies[companyId]?.market,
+    entityType: "company",
+    entityId: companyId,
+    status: "licensed",
+    latestSourceTimestamp: latest
+  });
+}
+
 function technologyAnnouncementItems(technologyId, { companyId } = {}, ingestionState = null) {
   const persisted = persistedTechnologyAnnouncementItems(ingestionState, technologyId, { companyId });
   if (persisted.length) return persisted;
@@ -608,7 +666,37 @@ function newsItems({ companyId, industryId, technologyId } = {}, ingestionState 
   ];
 }
 
-function meetingItems(companyId) {
+function persistedMeetingItems(ingestionState, companyId) {
+  return sortedRows(storedRows(ingestionState, "meetings"))
+    .filter(row => {
+      const record = row.record;
+      const linkedCompanyIds = record.linked_company_ids || [];
+      return record.company_id === companyId || linkedCompanyIds.includes(companyId);
+    })
+    .map(row => {
+      const record = row.record;
+      return {
+        id: `${row.providerId || "meetings"}-${row.index + 1}`,
+        companyId: record.company_id || companyId,
+        meetingType: record.meeting_type || "other",
+        title: record.title || "Meeting transcript",
+        heldAt: record.held_at || null,
+        sourceUrl: record.source_url || "",
+        transcriptUrl: record.transcript_url || "",
+        summary: record.summary || "",
+        keyPoints: Array.isArray(record.key_points) ? record.key_points : [],
+        linkedCompanyIds: record.linked_company_ids || [],
+        linkedIndustryIds: record.linked_industry_ids || [],
+        linkedTechnologyIds: record.linked_technology_ids || [],
+        sourceIds: record.source_ids || []
+      };
+    });
+}
+
+function meetingItems(companyId, ingestionState = null) {
+  const persisted = persistedMeetingItems(ingestionState, companyId);
+  if (persisted.length) return persisted;
+
   const company = companies[companyId];
   const sourceInfo = firstSource(company, ["mops", "secEdgar"]);
   return [
@@ -823,7 +911,7 @@ async function handleRequest(request, response, options) {
     const ingestionState = await loadIngestionState(options.ingestionStateFile);
     return sendJson(response, 200, {
       companyId,
-      items: meetingItems(companyId),
+      items: meetingItems(companyId, ingestionState),
       providerStatuses: companyFeedStatuses(companyId, ingestionState).filter(item => item.feedType === "meetings")
     });
   }
@@ -842,9 +930,9 @@ async function handleRequest(request, response, options) {
       feedStatuses,
       latestFilings: filingItems({ companyId }, ingestionState),
       latestNews: newsItems({ companyId }, ingestionState),
-      latestOptions: [],
+      latestOptions: persistedOptionChainItems(ingestionState, companyId),
       latestTechnologyAnnouncements: companyTechnologyAnnouncements(companyId, ingestionState),
-      latestMeetings: meetingItems(companyId)
+      latestMeetings: meetingItems(companyId, ingestionState)
     });
   }
 
@@ -904,15 +992,16 @@ async function handleRequest(request, response, options) {
     const company = companyId ? companies[companyId] : null;
     if (companyId && !company) return routeError(response, 404, "company not found");
     const ingestionState = companyId ? await loadIngestionState(options.ingestionStateFile) : null;
-    const availability = optionsAvailability(company);
+    const chain = companyId ? persistedOptionChainItems(ingestionState, companyId) : [];
+    const availability = optionsAvailabilityForChain(company, chain);
     const persistedOptionsStatus = companyId
       ? companyFeedStatuses(companyId, ingestionState).find(item => item.feedType === "options")
       : null;
     return sendJson(response, 200, {
       underlying: company ? { companyId, ticker: company.ticker, market: company.market } : null,
-      chain: [],
+      chain,
       availability,
-      providerStatuses: [persistedOptionsStatus || providerStatus({
+      providerStatuses: [persistedOptionsStatus || optionStatusFromChain(companyId, chain) || providerStatus({
         feedType: "options",
         provider: availability.provider,
         market: company?.market,

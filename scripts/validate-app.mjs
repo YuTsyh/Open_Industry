@@ -1132,6 +1132,44 @@ assert.ok(
   "company route should refresh options through the backend API instead of browser-side market data calls"
 );
 
+const apiOptionsChainHtml = renderRoute({
+  ...requiredState,
+  route: "company",
+  companyId: "nvidia",
+  companyTab: "news",
+  api: {
+    enabled: true,
+    companyLive: { nvidia: { latestNews: [], latestFilings: [], latestMeetings: [] } },
+    companyMeetings: { nvidia: { items: [], providerStatuses: [] } },
+    companyOptions: {
+      nvidia: {
+        underlying: { companyId: "nvidia", ticker: "NVDA", market: "US" },
+        chain: [
+          {
+            occSymbol: "NVDA260620C00200000",
+            expiration: "2026-06-20",
+            optionType: "call",
+            strike: 200,
+            openInterest: 12000,
+            volume: 4200,
+            impliedVolatility: 0.42,
+            provider: "Cboe U.S. options market data"
+          }
+        ],
+        availability: {
+          status: "licensed",
+          reason: "Licensed options chain loaded from backend ingestion.",
+          licenseBoundary: "Options chain, open interest, volume, and greeks must come from OCC, Cboe, or another licensed vendor through backend ingestion."
+        },
+        providerStatuses: [{ feedType: "options", provider: "Cboe U.S. options market data", status: "licensed" }]
+      }
+    }
+  }
+});
+assert.ok(apiOptionsChainHtml.includes("NVDA260620C00200000"), "options panel should render persisted option contract symbols");
+assert.ok(apiOptionsChainHtml.includes("OI 12,000") && apiOptionsChainHtml.includes("Vol 4,200"), "options panel should render open interest and volume for research context");
+assert.ok(apiOptionsChainHtml.includes("IV 42%"), "options panel should render implied volatility when licensed data is loaded");
+
 const apiIndustryNewsHtml = renderRoute({
   ...requiredState,
   route: "industry",

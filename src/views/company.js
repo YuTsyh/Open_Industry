@@ -278,6 +278,32 @@ function renderMeetingPanel(meetings = [], providerStatuses = []) {
   `;
 }
 
+function optionMetric(value, label, formatter = item => item) {
+  if (value == null || value === "") return "";
+  const display = formatter(value);
+  return display == null || display === "" ? "" : `${label} ${display}`;
+}
+
+function optionPercent(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return `${Math.round(parsed * 100)}%`;
+}
+
+function optionNumber(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(parsed);
+}
+
+function optionResearchMetrics(item = {}) {
+  return [
+    optionMetric(item.openInterest ?? item.open_interest, "OI", optionNumber),
+    optionMetric(item.volume, "Vol", optionNumber),
+    optionMetric(item.impliedVolatility ?? item.implied_volatility, "IV", optionPercent)
+  ].filter(Boolean).join(" / ");
+}
+
 function renderOptionsPanel(optionsPayload = {}) {
   const chain = optionsPayload.chain || optionsPayload.items || [];
   const availability = optionsPayload.availability || {};
@@ -294,6 +320,7 @@ function renderOptionsPanel(optionsPayload = {}) {
             <span>
               <strong>${escapeHtml(item.occSymbol || item.occ_symbol || "Options contract")}</strong><br>
               <small>${escapeHtml(item.expiration || "expiration pending")} / ${escapeHtml(item.optionType || item.option_type || "type pending")} / ${escapeHtml(String(item.strike ?? "strike pending"))}</small>
+              ${optionResearchMetrics(item) ? `<br><small>${escapeHtml(optionResearchMetrics(item))}</small>` : ""}
             </span>
             <span class="tag">${escapeHtml(item.provider || item.status || "licensed")}</span>
           </div>
