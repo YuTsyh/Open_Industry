@@ -67,6 +67,54 @@ await writeFile(ingestionStateFile, `${JSON.stringify({
       errorMessage: "MOPS parser changed"
     }
   ],
+  transformedRows: [
+    {
+      providerId: "mops-filings-events",
+      feedType: "filings",
+      table: "filings",
+      record: {
+        company_id: "tsmc",
+        source_id: "mops",
+        filing_type: "monthly_revenue",
+        title: "Ingested TSMC monthly revenue filing",
+        published_at: "2026-05-24T08:00:00Z",
+        source_url: "https://example.com/ingested-filing",
+        extracted_summary: "Ingested MOPS filing summary."
+      }
+    },
+    {
+      providerId: "mops-filings-events",
+      feedType: "news",
+      table: "news_events",
+      record: {
+        title: "Ingested CoWoS capacity news",
+        source_url: "https://example.com/ingested-news",
+        source_type: "official_ir",
+        confidence: "source",
+        published_at: "2026-05-24T09:00:00Z",
+        linked_company_ids: ["tsmc"],
+        linked_industry_ids: ["advanced-packaging"],
+        linked_technology_ids: ["cowos"]
+      }
+    },
+    {
+      providerId: "technology-official-announcements",
+      feedType: "technology_announcements",
+      table: "technology_announcements",
+      record: {
+        title: "Ingested 3DFabric announcement",
+        summary: "Persisted official technology announcement.",
+        source_id: "tsmc3dFabric",
+        source_url: "https://example.com/ingested-tech",
+        provider: "Official company technology sources",
+        confidence: "source",
+        published_at: "2026-05-24T10:00:00Z",
+        linked_company_ids: ["tsmc"],
+        linked_industry_ids: ["advanced-packaging"],
+        linked_technology_ids: ["cowos"]
+      }
+    }
+  ],
   ingestionRuns: []
 }, null, 2)}\n`, "utf8");
 
@@ -148,6 +196,7 @@ try {
     assert.equal(response.status, 200);
     assert.equal(body.technologyId, "cowos");
     assert.ok(body.items.length >= 1, "technology announcements should return source-backed items");
+    assert.equal(body.items[0].title, "Ingested 3DFabric announcement", "technology announcements should prefer persisted ingestion rows");
     assert.ok(body.items[0].sourceUrl, "technology announcement should keep source URL");
     assert.deepEqual(body.items[0].linkedCompanyIds, ["tsmc"], "technology announcements should normalize scoped company ids");
     assert.deepEqual(body.items[0].linkedTechnologyIds, ["cowos"], "technology announcements should normalize technology ids");
@@ -157,6 +206,7 @@ try {
     const { response, body } = await request(baseUrl, "/api/live/filings?companyId=tsmc");
     assert.equal(response.status, 200);
     assert.ok(body.items.length >= 1, "filings endpoint should return source-backed filing cards");
+    assert.equal(body.items[0].title, "Ingested TSMC monthly revenue filing", "filings endpoint should prefer persisted ingestion rows");
     assert.ok(body.items[0].title && body.items[0].sourceUrl, "filing cards should include title and source URL");
     assert.deepEqual(body.items[0].linkedCompanyIds, ["tsmc"], "company filings should normalize linked company ids");
   }
@@ -171,6 +221,7 @@ try {
     const { response, body } = await request(baseUrl, "/api/live/news?companyId=tsmc");
     assert.equal(response.status, 200);
     assert.ok(body.items.length >= 1, "news endpoint should return source-backed event cards");
+    assert.equal(body.items[0].title, "Ingested CoWoS capacity news", "news endpoint should prefer persisted ingestion rows");
     assert.ok(body.items[0].title && body.items[0].sourceUrl, "news cards should include title and source URL");
     assert.deepEqual(body.items[0].linkedCompanyIds, ["tsmc"], "company news should normalize linked company ids");
   }

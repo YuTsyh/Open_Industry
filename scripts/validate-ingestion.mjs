@@ -199,6 +199,16 @@ try {
     ),
     "sampled dry-run should transform MOPS rows with normalized company ids"
   );
+  const sampledState = await loadIngestionState(stateFile);
+  assert.ok(Array.isArray(sampledState.transformedRows), "ingestion state should expose persisted transformed rows");
+  assert.ok(
+    sampledState.transformedRows.some(row =>
+      row.providerId === "mops-filings-events" &&
+      row.table === "filings" &&
+      row.record.title === "TSMC monthly revenue filing"
+    ),
+    "ingestion state should persist transformed adapter rows for API queries"
+  );
 
   const failedState = {
     feedStatuses: [],

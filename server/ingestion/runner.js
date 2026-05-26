@@ -9,7 +9,8 @@ export const DEFAULT_INGESTION_STATE_FILE = fileURLToPath(new URL("../data/inges
 function emptyState() {
   return {
     feedStatuses: [],
-    ingestionRuns: []
+    ingestionRuns: [],
+    transformedRows: []
   };
 }
 
@@ -18,7 +19,8 @@ export async function loadIngestionState(stateFile = DEFAULT_INGESTION_STATE_FIL
     const parsed = JSON.parse(await readFile(stateFile, "utf8"));
     return {
       feedStatuses: Array.isArray(parsed.feedStatuses) ? parsed.feedStatuses : [],
-      ingestionRuns: Array.isArray(parsed.ingestionRuns) ? parsed.ingestionRuns : []
+      ingestionRuns: Array.isArray(parsed.ingestionRuns) ? parsed.ingestionRuns : [],
+      transformedRows: Array.isArray(parsed.transformedRows) ? parsed.transformedRows : []
     };
   } catch (error) {
     if (error.code === "ENOENT") return emptyState();
@@ -115,7 +117,8 @@ export async function runIngestionDryRun({
 
   const state = {
     feedStatuses,
-    ingestionRuns: [...runs, ...previous.ingestionRuns].slice(0, 200)
+    ingestionRuns: [...runs, ...previous.ingestionRuns].slice(0, 200),
+    transformedRows: [...transformedRows, ...previous.transformedRows].slice(0, 500)
   };
   await saveIngestionState(stateFile, state);
   return { ...state, runs, transformedRows };

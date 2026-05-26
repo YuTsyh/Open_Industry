@@ -338,7 +338,112 @@ function normalizedLinkedEvent(event, linkHints = {}) {
   return publicEvent;
 }
 
-function technologyAnnouncementItems(technologyId, { companyId } = {}) {
+function storedRows(ingestionState = {}, table) {
+  return (ingestionState.transformedRows || [])
+    .filter(row => row.table === table && row.record)
+    .map((row, index) => ({ ...row, index }));
+}
+
+function linkedIndustriesForCompany(companyId) {
+  return Object.keys(companies[companyId]?.industryExposures || {});
+}
+
+function rowIncludesScope(record = {}, { companyId, industryId, technologyId } = {}) {
+  const linkedCompanyIds = record.linked_company_ids || [];
+  const linkedIndustryIds = record.linked_industry_ids || [];
+  const linkedTechnologyIds = record.linked_technology_ids || [];
+  const rowCompanyId = record.company_id || null;
+  const rowIndustryIds = rowCompanyId ? linkedIndustriesForCompany(rowCompanyId) : [];
+
+  if (companyId && rowCompanyId !== companyId && !linkedCompanyIds.includes(companyId)) return false;
+  if (industryId && !linkedIndustryIds.includes(industryId) && !rowIndustryIds.includes(industryId)) return false;
+  if (technologyId && !linkedTechnologyIds.includes(technologyId)) return false;
+  return true;
+}
+
+function sortedRows(rows = []) {
+  return [...rows].sort((a, b) => {
+    const aTime = a.record.published_at || a.record.source_timestamp || "";
+    const bTime = b.record.published_at || b.record.source_timestamp || "";
+    return String(bTime).localeCompare(String(aTime));
+  });
+}
+
+function sourceLabel(sourceId, fallback) {
+  return officialSources[sourceId]?.label || fallback;
+}
+
+function persistedFilingItems(ingestionState, scope = {}) {
+  return sortedRows(storedRows(ingestionState, "filings"))
+    .filter(row => rowIncludesScope(row.record, scope))
+    .map(row => {
+      const record = row.record;
+      return normalizedLinkedEvent({
+        id: `${row.providerId || "filings"}-${row.index + 1}`,
+        companyId: record.company_id || null,
+        filingType: record.filing_type || "provider-ready",
+        title: record.title,
+        publishedAt: record.published_at || null,
+        sourceUrl: record.source_url || "",
+        provider: sourceLabel(record.source_id, row.provider || "official filing provider"),
+        extractedSummary: record.extracted_summary || ""
+      }, {
+        companyIds: record.company_id ? [record.company_id] : [],
+        industryIds: scope.industryId
+          ? [scope.industryId]
+          : record.company_id ? linkedIndustriesForCompany(record.company_id) : []
+      });
+    });
+}
+
+function persistedNewsItems(ingestionState, scope = {}) {
+  return sortedRows(storedRows(ingestionState, "news_events"))
+    .filter(row => rowIncludesScope(row.record, scope))
+    .map(row => {
+      const record = row.record;
+      return normalizedLinkedEvent({
+        id: `${row.providerId || "news"}-${row.index + 1}`,
+        title: record.title,
+        publishedAt: record.published_at || null,
+        sourceUrl: record.source_url || "",
+        sourceType: record.source_type || "provider-ready",
+        provider: record.provider || sourceLabel(record.source_id, row.provider || "official news provider"),
+        confidence: record.confidence || "medium",
+        summary: record.summary || record.extracted_summary || ""
+      }, {
+        companyIds: record.linked_company_ids || [],
+        industryIds: record.linked_industry_ids || [],
+        technologyIds: record.linked_technology_ids || []
+      });
+    });
+}
+
+function persistedTechnologyAnnouncementItems(ingestionState, technologyId, { companyId } = {}) {
+  return sortedRows(storedRows(ingestionState, "technology_announcements"))
+    .filter(row => rowIncludesScope(row.record, { companyId, technologyId }))
+    .map(row => {
+      const record = row.record;
+      return normalizedLinkedEvent({
+        id: `${row.providerId || technologyId}-${row.index + 1}`,
+        title: record.title,
+        summary: record.summary || "",
+        sourceId: record.source_id || "",
+        sourceUrl: record.source_url || "",
+        provider: record.provider || sourceLabel(record.source_id, "official source"),
+        confidence: record.confidence || "medium",
+        publishedAt: record.published_at || null
+      }, {
+        companyIds: record.linked_company_ids || [],
+        industryIds: record.linked_industry_ids || [],
+        technologyIds: record.linked_technology_ids || []
+      });
+    });
+}
+
+function technologyAnnouncementItems(technologyId, { companyId } = {}, ingestionState = null) {
+  const persisted = persistedTechnologyAnnouncementItems(ingestionState, technologyId, { companyId });
+  if (persisted.length) return persisted;
+
   const tech = technologyCatalog[technologyId];
   if (!tech) return [];
 
@@ -363,9 +468,12 @@ function technologyAnnouncementItems(technologyId, { companyId } = {}) {
   });
 }
 
-function companyTechnologyAnnouncements(companyId) {
+function companyTechnologyAnnouncements(companyId, ingestionState = null) {
   const company = companies[companyId];
   if (!company) return [];
+
+  const persisted = persistedTechnologyAnnouncementItems(ingestionState, "", { companyId });
+  if (persisted.length) return persisted.slice(0, 6);
 
   const relevantTechnologyIds = Object.entries(technologyCatalog)
     .filter(([, tech]) => (tech.roles || []).some(([, companyLabel]) => companyLabel.includes(company.ticker)))
@@ -380,7 +488,10 @@ function firstSource(company, preferredKeys = []) {
   return key ? { key, source: officialSources[key] } : { key: "", source: null };
 }
 
-function filingItems({ companyId, industryId } = {}) {
+function filingItems({ companyId, industryId } = {}, ingestionState = null) {
+  const persisted = persistedFilingItems(ingestionState, { companyId, industryId });
+  if (persisted.length) return persisted;
+
   const company = companyId ? companies[companyId] : null;
   const sourceInfo = firstSource(company, ["mops", "secEdgar", "jpxListedCompanySearch"]);
   const titleName = company?.name || industries[industryId]?.name || "Industry";
@@ -401,7 +512,10 @@ function filingItems({ companyId, industryId } = {}) {
   ];
 }
 
-function newsItems({ companyId, industryId, technologyId } = {}) {
+function newsItems({ companyId, industryId, technologyId } = {}, ingestionState = null) {
+  const persisted = persistedNewsItems(ingestionState, { companyId, industryId, technologyId });
+  if (persisted.length) return persisted;
+
   const company = companyId ? companies[companyId] : null;
   const sourceInfo = firstSource(company, ["mops", "secEdgar", "tsmc3dFabric"]);
   const titleName = company?.name || industries[industryId]?.name || technologyCatalog[technologyId]?.name || "Research";
@@ -652,10 +766,10 @@ async function handleRequest(request, response, options) {
       company,
       priceSnapshot: companies[companyId].liveFeeds?.priceSnapshot || null,
       feedStatuses,
-      latestFilings: filingItems({ companyId }),
-      latestNews: newsItems({ companyId }),
+      latestFilings: filingItems({ companyId }, ingestionState),
+      latestNews: newsItems({ companyId }, ingestionState),
       latestOptions: [],
-      latestTechnologyAnnouncements: companyTechnologyAnnouncements(companyId),
+      latestTechnologyAnnouncements: companyTechnologyAnnouncements(companyId, ingestionState),
       latestMeetings: meetingItems(companyId)
     });
   }
@@ -684,10 +798,11 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && url.pathname === "/api/live/filings") {
     const companyId = url.searchParams.get("companyId");
     const industryId = url.searchParams.get("industryId");
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
     return sendJson(response, 200, {
-      items: filingItems({ companyId, industryId }),
+      items: filingItems({ companyId, industryId }, ingestionState),
       providerStatuses: companyId && companies[companyId]
-        ? companyFeedStatuses(companyId, await loadIngestionState(options.ingestionStateFile)).filter(item => item.feedType === "filings")
+        ? companyFeedStatuses(companyId, ingestionState).filter(item => item.feedType === "filings")
         : [providerStatus({ feedType: "filings", provider: "filings provider slot", status: "provider-ready" })]
     });
   }
@@ -696,10 +811,11 @@ async function handleRequest(request, response, options) {
     const companyId = url.searchParams.get("companyId");
     const industryId = url.searchParams.get("industryId");
     const technologyId = url.searchParams.get("technologyId");
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
     return sendJson(response, 200, {
-      items: newsItems({ companyId, industryId, technologyId }),
+      items: newsItems({ companyId, industryId, technologyId }, ingestionState),
       providerStatuses: companyId && companies[companyId]
-        ? companyFeedStatuses(companyId, await loadIngestionState(options.ingestionStateFile)).filter(item => item.feedType === "news")
+        ? companyFeedStatuses(companyId, ingestionState).filter(item => item.feedType === "news")
         : [providerStatus({ feedType: "news", provider: "news provider slot", status: "provider-ready" })]
     });
   }
@@ -734,9 +850,10 @@ async function handleRequest(request, response, options) {
     const companyId = url.searchParams.get("companyId");
     if (!technologyCatalog[technologyId]) return routeError(response, 404, "technology not found");
     if (companyId && !companies[companyId]) return routeError(response, 404, "company not found");
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
     return sendJson(response, 200, {
       technologyId,
-      items: technologyAnnouncementItems(technologyId, { companyId }),
+      items: technologyAnnouncementItems(technologyId, { companyId }, ingestionState),
       providerStatuses: [providerStatus({
         feedType: "technology_announcements",
         provider: "official company technology sources",
