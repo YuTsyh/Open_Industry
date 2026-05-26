@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApiServer, signJwt } from "../server/api/server.js";
 
 const tempDir = await mkdtemp(join(tmpdir(), "industrytopo-api-"));
 const notesFile = join(tempDir, "notes.local.json");
+const ingestionStateFile = join(tempDir, "ingestion-state.local.json");
 const jwtSecret = "test-secret";
 const token = signJwt(
   {
@@ -40,7 +41,36 @@ const strangerToken = signJwt(
   jwtSecret
 );
 
-const server = createApiServer({ notesFile, jwtSecret });
+await writeFile(ingestionStateFile, `${JSON.stringify({
+  feedStatuses: [
+    {
+      feedType: "price",
+      provider: "TWSE OpenAPI",
+      market: "TW",
+      entityType: "global",
+      entityId: "",
+      status: "delayed",
+      latestSourceTimestamp: "2026-05-24T06:00:00Z",
+      latestSuccessAt: "2026-05-24T06:05:00Z",
+      updatedAt: "2026-05-24T06:06:00Z"
+    },
+    {
+      feedType: "filings",
+      provider: "MOPS",
+      market: "TW",
+      entityType: "company",
+      entityId: "tsmc",
+      status: "error",
+      latestSourceTimestamp: "2026-05-23T03:00:00Z",
+      latestSuccessAt: "2026-05-23T03:05:00Z",
+      updatedAt: "2026-05-24T03:10:00Z",
+      errorMessage: "MOPS parser changed"
+    }
+  ],
+  ingestionRuns: []
+}, null, 2)}\n`, "utf8");
+
+const server = createApiServer({ notesFile, ingestionStateFile, jwtSecret });
 
 function listen(instance) {
   return new Promise(resolve => {
@@ -80,10 +110,14 @@ try {
     assert.ok(Array.isArray(body.feedStatuses), "company live response should include provider statuses");
     const priceStatus = body.feedStatuses.find(item => item.feedType === "price");
     assert.ok(priceStatus?.latestSourceTimestamp, "company live provider status should expose source freshness timing");
+    assert.equal(priceStatus.provider, "TWSE OpenAPI", "company live provider status should use persisted ingestion feed provider when available");
+    assert.equal(priceStatus.latestSourceTimestamp, "2026-05-24T06:00:00Z", "company live provider status should use persisted source freshness timing");
     assert.ok(Object.hasOwn(priceStatus, "latestSuccessAt"), "company live provider status should expose latest update timing");
     assert.ok(Object.hasOwn(priceStatus, "updatedAt"), "company live provider status should expose API status update timing");
     const filingsStatus = body.feedStatuses.find(item => item.feedType === "filings");
     assert.match(filingsStatus?.provider || "", /MOPS public information observation system/, "company live provider status should expose human-readable source labels");
+    assert.equal(filingsStatus.status, "error", "company live provider status should use company-scoped persisted feed health");
+    assert.equal(filingsStatus.updatedAt, "2026-05-24T03:10:00Z", "company live provider status should preserve persisted update timestamp");
     assert.ok(Array.isArray(body.latestTechnologyAnnouncements), "company live response should include technology announcements");
     assert.ok(Array.isArray(body.latestMeetings), "company live response should include meetings");
   }
@@ -92,6 +126,8 @@ try {
     const { response, body } = await request(baseUrl, "/api/live/company/tsmc/price");
     assert.equal(response.status, 200);
     assert.equal(body.providerStatuses[0].status, "delayed");
+    assert.equal(body.providerStatuses[0].provider, "TWSE OpenAPI", "price provider status should use persisted ingestion feed provider");
+    assert.equal(body.providerStatuses[0].latestSourceTimestamp, "2026-05-24T06:00:00Z", "price provider status should use persisted ingestion source time");
     assert.ok(body.snapshot.sourceTimestamp || body.snapshot.asOf, "price response should expose source timing");
     assert.ok(body.snapshot.provider, "price response should expose provider");
     assert.ok(body.history.length >= 1, "price response should include at least one source-backed point for mini charts");

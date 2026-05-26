@@ -17,6 +17,7 @@ import {
   summarizeIngestionState
 } from "../ingestion/runner.js";
 import { normalizeEventLinks } from "../ingestion/normalization.js";
+import { ingestionProviderContracts } from "../ingestion/providerContracts.js";
 
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
 const NOTE_ENTITY_TYPES = new Set(["company", "industry", "technology"]);
@@ -171,6 +172,46 @@ function providerStatus({ feedType, provider, status, market, entityType, entity
   };
 }
 
+function providerLabelForStatus(status = {}) {
+  const contract = ingestionProviderContracts.find(item => item.provider === status.provider || item.id === status.providerId);
+  if (contract?.sourceKeys?.length === 1) return sourceLabels(contract.sourceKeys, status.provider || "provider slot");
+  return status.provider || "provider slot";
+}
+
+function statusMarkets(status = {}) {
+  return String(status.market || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function statusMatchesCompany(status = {}, companyId) {
+  const company = companies[companyId];
+  if (!company) return false;
+
+  const entityType = status.entityType || "global";
+  const entityMatches =
+    entityType === "global" ||
+    (entityType === "company" && status.entityId === companyId);
+  if (!entityMatches) return false;
+
+  const markets = statusMarkets(status);
+  return !markets.length || markets.includes(company.market);
+}
+
+function statusSpecificity(status = {}, companyId) {
+  if (status.entityType === "company" && status.entityId === companyId) return 3;
+  if (statusMarkets(status).length) return 2;
+  return 1;
+}
+
+function normalizeIngestionStatus(status = {}) {
+  return providerStatus({
+    ...status,
+    provider: providerLabelForStatus(status)
+  });
+}
+
 function sourceLabels(keys = [], fallback = "provider slot") {
   const labels = keys
     .map(key => officialSources[key]?.label)
@@ -206,13 +247,13 @@ function optionsAvailability(company) {
   };
 }
 
-function companyFeedStatuses(companyId) {
+function companyFeedStatuses(companyId, ingestionState = null) {
   const company = companies[companyId];
   if (!company) return [];
 
   const feeds = company.liveFeeds || {};
   const snapshot = feeds.priceSnapshot || {};
-  return [
+  const fallbackStatuses = [
     providerStatus({
       feedType: "price",
       provider: snapshot.provider || "price provider slot",
@@ -263,6 +304,20 @@ function companyFeedStatuses(companyId) {
       status: "provider-ready"
     })
   ];
+  const persistedByFeedType = new Map();
+  for (const status of ingestionState?.feedStatuses || []) {
+    if (!status.feedType || !statusMatchesCompany(status, companyId)) continue;
+    const current = persistedByFeedType.get(status.feedType);
+    if (!current || statusSpecificity(status, companyId) > statusSpecificity(current, companyId)) {
+      persistedByFeedType.set(status.feedType, status);
+    }
+  }
+
+  return fallbackStatuses.map(status => (
+    persistedByFeedType.has(status.feedType)
+      ? normalizeIngestionStatus(persistedByFeedType.get(status.feedType))
+      : status
+  ));
 }
 
 function normalizedLinkedEvent(event, linkHints = {}) {
@@ -557,6 +612,7 @@ async function handleRequest(request, response, options) {
     const companyId = companyPriceMatch[1];
     const company = companies[companyId];
     if (!company) return routeError(response, 404, "company not found");
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
     const snapshot = company.liveFeeds?.priceSnapshot || {};
     const status = statusFromFeed(company.liveFeeds?.price, snapshot);
     return sendJson(response, 200, {
@@ -569,7 +625,7 @@ async function handleRequest(request, response, options) {
       snapshot,
       history: priceHistoryFromSnapshot(snapshot),
       trend: trendFromSnapshot(snapshot, status),
-      providerStatuses: [companyFeedStatuses(companyId)[0]]
+      providerStatuses: [companyFeedStatuses(companyId, ingestionState)[0]]
     });
   }
 
@@ -577,10 +633,11 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && companyMeetingsMatch) {
     const companyId = companyMeetingsMatch[1];
     if (!companies[companyId]) return routeError(response, 404, "company not found");
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
     return sendJson(response, 200, {
       companyId,
       items: meetingItems(companyId),
-      providerStatuses: companyFeedStatuses(companyId).filter(item => item.feedType === "meetings")
+      providerStatuses: companyFeedStatuses(companyId, ingestionState).filter(item => item.feedType === "meetings")
     });
   }
 
@@ -589,7 +646,8 @@ async function handleRequest(request, response, options) {
     const companyId = companyLiveMatch[1];
     const company = publicCompany(companyId);
     if (!company) return routeError(response, 404, "company not found");
-    const feedStatuses = companyFeedStatuses(companyId);
+    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const feedStatuses = companyFeedStatuses(companyId, ingestionState);
     return sendJson(response, 200, {
       company,
       priceSnapshot: companies[companyId].liveFeeds?.priceSnapshot || null,
@@ -629,7 +687,7 @@ async function handleRequest(request, response, options) {
     return sendJson(response, 200, {
       items: filingItems({ companyId, industryId }),
       providerStatuses: companyId && companies[companyId]
-        ? companyFeedStatuses(companyId).filter(item => item.feedType === "filings")
+        ? companyFeedStatuses(companyId, await loadIngestionState(options.ingestionStateFile)).filter(item => item.feedType === "filings")
         : [providerStatus({ feedType: "filings", provider: "filings provider slot", status: "provider-ready" })]
     });
   }
@@ -641,7 +699,7 @@ async function handleRequest(request, response, options) {
     return sendJson(response, 200, {
       items: newsItems({ companyId, industryId, technologyId }),
       providerStatuses: companyId && companies[companyId]
-        ? companyFeedStatuses(companyId).filter(item => item.feedType === "news")
+        ? companyFeedStatuses(companyId, await loadIngestionState(options.ingestionStateFile)).filter(item => item.feedType === "news")
         : [providerStatus({ feedType: "news", provider: "news provider slot", status: "provider-ready" })]
     });
   }
@@ -650,12 +708,16 @@ async function handleRequest(request, response, options) {
     const companyId = url.searchParams.get("companyId");
     const company = companyId ? companies[companyId] : null;
     if (companyId && !company) return routeError(response, 404, "company not found");
+    const ingestionState = companyId ? await loadIngestionState(options.ingestionStateFile) : null;
     const availability = optionsAvailability(company);
+    const persistedOptionsStatus = companyId
+      ? companyFeedStatuses(companyId, ingestionState).find(item => item.feedType === "options")
+      : null;
     return sendJson(response, 200, {
       underlying: company ? { companyId, ticker: company.ticker, market: company.market } : null,
       chain: [],
       availability,
-      providerStatuses: [providerStatus({
+      providerStatuses: [persistedOptionsStatus || providerStatus({
         feedType: "options",
         provider: availability.provider,
         market: company?.market,
