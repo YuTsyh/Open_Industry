@@ -158,6 +158,68 @@ try {
     alert.action.includes("backoff")
   ), "summary should surface rate-limit recovery guidance");
   assert.ok(!JSON.stringify(summary.alerts).includes(secretValue), "alerts must redact configured secret values");
+
+  const technologyContract = ingestionProviderContracts.find(contract => contract.id === "technology-official-announcements");
+  const fetchedUrls = [];
+  const officialAdapter = providerAdapterRegistry["technology-official-announcements"];
+  assert.equal(typeof officialAdapter, "function", "technology official announcements should have a scheduled adapter");
+  const officialAdapterResult = await officialAdapter({
+    contract: technologyContract,
+    fetchImpl: async url => {
+      fetchedUrls.push(url);
+      return {
+        ok: true,
+        status: 200,
+        headers: {
+          get(name) {
+            return name.toLowerCase() === "date" ? "Tue, 26 May 2026 10:00:00 GMT" : "";
+          }
+        },
+        async text() {
+          return `
+            <html>
+              <head>
+                <title>TSMC 3DFabric Advanced Packaging</title>
+                <meta name="description" content="CoWoS and SoIC platform update from an official source.">
+                <meta property="article:published_time" content="2026-05-26T09:30:00Z">
+              </head>
+            </html>
+          `;
+        }
+      };
+    },
+    now: () => new Date("2026-05-26T12:00:00.000Z")
+  });
+  assert.equal(officialAdapterResult.status, "licensed");
+  assert.equal(officialAdapterResult.records.length, technologyContract.sourceKeys.length);
+  assert.ok(fetchedUrls.includes("https://www.tsmc.com/chinese/dedicatedFoundry/services/advanced-packaging"));
+  const tsmcRecord = officialAdapterResult.records.find(record => record.sourceId === "tsmc3dFabric");
+  assert.equal(tsmcRecord.feedType, "technology_announcements");
+  assert.equal(tsmcRecord.title, "TSMC 3DFabric Advanced Packaging");
+  assert.match(tsmcRecord.summary, /CoWoS and SoIC/);
+  assert.ok(tsmcRecord.companyIds.includes("tsmc"), "official adapter should map source keys to linked companies");
+  assert.ok(tsmcRecord.technologyIds.includes("cowos"), "official adapter should map source keys to linked technologies");
+  assert.equal(tsmcRecord.sourceTimestamp, "2026-05-26T10:00:00.000Z");
+
+  const officialRun = await runScheduledIngestion({
+    stateFile,
+    providerIds: ["technology-official-announcements"],
+    fetchImpl: async url => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "Tue, 26 May 2026 10:00:00 GMT" },
+      async text() {
+        return `<title>${url}</title><meta name="description" content="Official source update.">`;
+      }
+    }),
+    now: () => new Date("2026-05-26T12:30:00.000Z")
+  });
+  assert.equal(officialRun.runs[0].status, "succeeded");
+  assert.ok(officialRun.transformedRows.some(row =>
+    row.providerId === "technology-official-announcements" &&
+    row.table === "technology_announcements" &&
+    row.record.source_id === "tsmc3dFabric"
+  ), "scheduled runner should use the registered official-source adapter by default");
 } finally {
   await rm(tempDir, { recursive: true, force: true });
 }
