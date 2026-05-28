@@ -49,6 +49,7 @@ Current executable API scaffold:
 - `node scripts/validate-postgres-notes.mjs` verifies PostgreSQL-backed note creation, collaborator access, and editor updates
 - `node scripts/apply-schema.mjs --dry-run` prints the redacted `psql` command; `node scripts/apply-schema.mjs` applies `server/schema.sql` using `DATABASE_URL`
 - `node server/ingestion/runner.js` performs a no-network dry run over provider contracts and writes `feed_statuses` / `ingestion_runs` shaped status to the local ingestion store
+- `npm run ingest:scheduled` executes the scheduled ingestion entrypoint; scope production runs with `INDUSTRYTOPO_ENABLED_PROVIDERS=twse-daily-prices,mops-filings-events,...` and configure only licensed provider secrets in the environment
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
 - Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`
 

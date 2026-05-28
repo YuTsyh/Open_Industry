@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ingestionProviderContracts } from "./providerContracts.js";
 import { transformProviderRecord } from "./transforms.js";
+import { buildProviderRequestPlan, providerAdapterRegistry } from "./adapters.js";
 
 export const DEFAULT_INGESTION_STATE_FILE = fileURLToPath(new URL("../data/ingestion-state.local.json", import.meta.url));
 
@@ -37,35 +38,58 @@ function missingSecrets(contract, env) {
   return (contract.requiredSecrets || []).filter(name => !env[name]);
 }
 
+function secretValues(env = {}) {
+  return Object.entries(env)
+    .filter(([name, value]) => (
+      /SECRET|TOKEN|KEY|PASSWORD|DATABASE_URL/i.test(name) &&
+      typeof value === "string" &&
+      value.length > 0
+    ))
+    .map(([, value]) => value);
+}
+
+function redactSecrets(value, env = {}) {
+  let text = String(value ?? "");
+  for (const secret of secretValues(env)) {
+    text = text.split(secret).join("<redacted>");
+  }
+  return text;
+}
+
 function contractStatus(contract, missing) {
   if (missing.length > 0) return "not-available";
   if (contract.feedType === "options") return "provider-ready";
   return "provider-ready";
 }
 
-function makeFeedStatus(contract, missing, timestamp) {
+function makeFeedStatus(contract, missing, timestamp, overrides = {}) {
   return {
     feedType: contract.feedType,
     provider: contract.provider,
     market: contract.markets?.join(",") || null,
     entityType: "global",
     entityId: "",
-    status: contractStatus(contract, missing),
-    latestSourceTimestamp: null,
-    latestSuccessAt: missing.length ? null : timestamp,
-    errorMessage: missing.length ? `Missing required env: ${missing.join(", ")}` : "",
+    status: overrides.status || contractStatus(contract, missing),
+    latestSourceTimestamp: overrides.latestSourceTimestamp || null,
+    latestSuccessAt: overrides.latestSuccessAt ?? (missing.length ? null : timestamp),
+    errorMessage: overrides.errorMessage || (missing.length ? `Missing required env: ${missing.join(", ")}` : ""),
     updatedAt: timestamp
   };
 }
 
-function makeRun(contract, missing, timestamp, { recordsSeen = 0, recordsWritten = 0 } = {}) {
-  const skipped = missing.length > 0;
+function makeRun(contract, missing, timestamp, {
+  recordsSeen = 0,
+  recordsWritten = 0,
+  status = "",
+  errorMessage = ""
+} = {}) {
+  const skipped = missing.length > 0 || status === "skipped";
   return {
     id: `${contract.id}-${timestamp}`,
     providerId: contract.id,
     provider: contract.provider,
     feedType: contract.feedType,
-    status: skipped ? "skipped" : "succeeded",
+    status: status || (skipped ? "skipped" : "succeeded"),
     startedAt: timestamp,
     finishedAt: timestamp,
     recordsSeen: skipped ? 0 : recordsSeen,
@@ -73,8 +97,40 @@ function makeRun(contract, missing, timestamp, { recordsSeen = 0, recordsWritten
     missingSecrets: missing,
     outputTables: contract.outputTables || [],
     licenseBoundary: contract.licenseBoundary,
-    errorMessage: skipped ? `Missing required env: ${missing.join(", ")}` : ""
+    errorMessage: errorMessage || (skipped ? `Missing required env: ${missing.join(", ")}` : "")
   };
+}
+
+function providerIdsFromEnv(env = {}) {
+  return String(env.INDUSTRYTOPO_ENABLED_PROVIDERS || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function selectedContracts(providerIds = []) {
+  const selected = providerIds.length ? new Set(providerIds) : null;
+  return ingestionProviderContracts.filter(contract => !selected || selected.has(contract.id));
+}
+
+function recordTimestamp(record = {}) {
+  return record.sourceTimestamp ||
+    record.source_timestamp ||
+    record.publishedAt ||
+    record.published_at ||
+    record.capturedAt ||
+    record.captured_at ||
+    record.tradeDate ||
+    record.trade_date ||
+    "";
+}
+
+function latestRecordTimestamp(records = []) {
+  return records
+    .map(recordTimestamp)
+    .filter(Boolean)
+    .sort()
+    .at(-1) || null;
 }
 
 export async function runIngestionDryRun({
@@ -113,6 +169,98 @@ export async function runIngestionDryRun({
       recordsWritten: transformed.length
     }));
     feedStatuses.push(makeFeedStatus(contract, missing, timestamp));
+  }
+
+  const state = {
+    feedStatuses,
+    ingestionRuns: [...runs, ...previous.ingestionRuns].slice(0, 200),
+    transformedRows: [...transformedRows, ...previous.transformedRows].slice(0, 500)
+  };
+  await saveIngestionState(stateFile, state);
+  return { ...state, runs, transformedRows };
+}
+
+export async function runScheduledIngestion({
+  stateFile = DEFAULT_INGESTION_STATE_FILE,
+  env = process.env,
+  now = () => new Date(),
+  providerIds = providerIdsFromEnv(env),
+  adapters = providerAdapterRegistry,
+  fetchImpl = globalThis.fetch
+} = {}) {
+  const timestamp = now().toISOString();
+  const previous = await loadIngestionState(stateFile);
+  const runs = [];
+  const feedStatuses = [];
+  const transformedRows = [];
+
+  for (const contract of selectedContracts(providerIds)) {
+    const missing = missingSecrets(contract, env);
+    buildProviderRequestPlan(contract, { enabled: true, missingSecrets: missing });
+
+    if (missing.length) {
+      runs.push(makeRun(contract, missing, timestamp));
+      feedStatuses.push(makeFeedStatus(contract, missing, timestamp, {
+        status: "not-available"
+      }));
+      continue;
+    }
+
+    const adapter = adapters[contract.id];
+    if (typeof adapter !== "function") {
+      runs.push(makeRun(contract, [], timestamp, {
+        status: "skipped",
+        errorMessage: "No scheduled adapter is configured for this provider."
+      }));
+      feedStatuses.push(makeFeedStatus(contract, [], timestamp, {
+        status: "provider-ready",
+        latestSuccessAt: null,
+        errorMessage: "No scheduled adapter is configured for this provider."
+      }));
+      continue;
+    }
+
+    try {
+      const adapterResult = await adapter({
+        contract,
+        env,
+        fetchImpl,
+        now,
+        requestPlan: buildProviderRequestPlan(contract, { enabled: true, missingSecrets: [] })
+      });
+      const records = Array.isArray(adapterResult?.records) ? adapterResult.records : [];
+      const transformed = records.map(record => ({
+        providerId: contract.id,
+        feedType: record.feedType || record.feed_type || contract.feedType,
+        ...transformProviderRecord({
+          ...record,
+          feedType: record.feedType || record.feed_type || contract.feedType,
+          provider: record.provider || contract.provider
+        })
+      }));
+      const latestSourceTimestamp = latestRecordTimestamp(records) || adapterResult?.latestSourceTimestamp || null;
+      transformedRows.push(...transformed);
+      runs.push(makeRun(contract, [], timestamp, {
+        recordsSeen: records.length,
+        recordsWritten: transformed.length
+      }));
+      feedStatuses.push(makeFeedStatus(contract, [], timestamp, {
+        status: adapterResult?.status || (records.length ? "licensed" : "provider-ready"),
+        latestSourceTimestamp,
+        latestSuccessAt: timestamp
+      }));
+    } catch (error) {
+      const errorMessage = redactSecrets(error.message || error, env);
+      runs.push(makeRun(contract, [], timestamp, {
+        status: "failed",
+        errorMessage
+      }));
+      feedStatuses.push(makeFeedStatus(contract, [], timestamp, {
+        status: "error",
+        latestSuccessAt: null,
+        errorMessage
+      }));
+    }
   }
 
   const state = {
@@ -201,7 +349,10 @@ export function summarizeIngestionState(state = emptyState()) {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const stateFile = process.env.INDUSTRYTOPO_INGESTION_STATE_FILE || DEFAULT_INGESTION_STATE_FILE;
-  const result = await runIngestionDryRun({ stateFile });
+  const scheduled = process.argv.includes("--scheduled");
+  const result = scheduled
+    ? await runScheduledIngestion({ stateFile })
+    : await runIngestionDryRun({ stateFile });
   const summary = summarizeIngestionState(result);
-  console.log(JSON.stringify({ summary, recentRuns: result.runs }, null, 2));
+  console.log(JSON.stringify({ mode: scheduled ? "scheduled" : "dry-run", summary, recentRuns: result.runs }, null, 2));
 }
