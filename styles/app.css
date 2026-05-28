@@ -810,8 +810,13 @@ tr.hidden, .hidden { display: none !important; }
 .fact-label { color: var(--muted); font-size: 12px; font-weight: 800; }
 .fact-value { min-width: 0; overflow-wrap: anywhere; line-height: 1.45; }
 
-.company-tabs-block { display: grid; gap: 14px; }
-.company-tab-panel { display: grid; gap: 16px; }
+.company-tabs-block { display: grid; gap: 14px; min-width: 0; max-width: 100%; overflow-x: clip; }
+.company-tab-panel { display: grid; gap: 16px; min-width: 0; max-width: 100%; }
+.company-tab-panel > *,
+.company-tab-panel .card { min-width: 0; max-width: 100%; }
+.company-tab-panel .card h2,
+.company-tab-panel .card p,
+.company-tab-panel .source-row { overflow-wrap: anywhere; }
 .notes-form { display: grid; gap: 10px; margin-top: 12px; }
 .notes-title {
   width: 100%;
@@ -1088,6 +1093,7 @@ tr.hidden, .hidden { display: none !important; }
   .filter-panel { grid-template-columns: 1fr; }
   .landscape .data-table-wrap { max-width: calc(100vw - 28px); }
   .sticky-tabs { top: 0; border-radius: 0; margin-inline: -14px; }
+  .company-tabs-block .sticky-tabs { width: 100%; max-width: 100%; border-radius: var(--radius-sm); margin-inline: 0; }
   .relationship-graph { min-height: 720px; }
   .graph-node { position: static; transform: none !important; min-width: 0; margin: 10px; }
   .graph-line { display: none; }
