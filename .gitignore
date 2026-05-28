@@ -1,5 +1,8 @@
 .od-skills/
 .playwright-mcp/
 .tmp-*
+.env
+.env.*
+!.env.example
 gitstore/
 server/data/*.local.json

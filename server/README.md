@@ -36,15 +36,20 @@ Current executable API scaffold:
 
 - `node server/api/server.js`
 - `PORT=8787` by default
+- `INDUSTRYTOPO_DATA_SOURCE=postgres` selects the production PostgreSQL path; local development can omit it and keep the JSON fallback
+- `DATABASE_URL` points `psql` and future backend adapters at the PostgreSQL database created from `server/schema.sql`
 - `INDUSTRYTOPO_JWT_SECRET` enables HS256 JWT verification for notes endpoints
 - `INDUSTRYTOPO_NOTES_FILE` overrides the local notes JSON store
 - `INDUSTRYTOPO_INGESTION_STATE_FILE` overrides the local ingestion status JSON store
+- `INDUSTRYTOPO_ENABLED_PROVIDERS` is a comma-separated list of provider contract ids to enable in production; any required secrets must be present in the environment
 - `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
+- `node scripts/validate-deployment.mjs` verifies the production environment contract without printing secret values
+- `node scripts/apply-schema.mjs --dry-run` prints the redacted `psql` command; `node scripts/apply-schema.mjs` applies `server/schema.sql` using `DATABASE_URL`
 - `node server/ingestion/runner.js` performs a no-network dry run over provider contracts and writes `feed_statuses` / `ingestion_runs` shaped status to the local ingestion store
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
 - Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`
 
-The scaffold intentionally returns empty arrays plus `provider-ready` or `not-available` status for filings, news, options, and meetings until licensed ingestion is connected. This keeps the UI contract truthful instead of showing unlicensed or fabricated data.
+The scaffold returns persisted transformed rows when ingestion has loaded them, and otherwise falls back to explicit `provider-ready` or `not-available` statuses. This keeps the UI contract truthful instead of showing unlicensed or fabricated data.
 
 Why this belongs in the same repo at first:
 
@@ -52,4 +57,4 @@ Why this belongs in the same repo at first:
 - `company_id`, `industry_id`, `technology_id`, and relationship ids stay consistent.
 - Backend can later split out if deployment, auth, or licensing requirements diverge.
 
-Do not put API keys or exchange credentials in this repo. Use environment variables and a secrets manager in production.
+Do not put API keys, database credentials, JWT secrets, or exchange credentials in this repo. Use `.env.example` only for blank variable names, and use environment variables or a secrets manager in production.
