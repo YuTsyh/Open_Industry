@@ -4,5 +4,6 @@
 .env
 .env.*
 !.env.example
+node_modules/
 gitstore/
 server/data/*.local.json

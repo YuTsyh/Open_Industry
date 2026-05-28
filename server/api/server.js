@@ -18,6 +18,8 @@ import {
 } from "../ingestion/runner.js";
 import { normalizeEventLinks, resolveCompanyId } from "../ingestion/normalization.js";
 import { ingestionProviderContracts } from "../ingestion/providerContracts.js";
+import { buildRuntimeConfig } from "../deployment/env.js";
+import { createPostgresStateLoader } from "./postgresStore.js";
 
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
 const NOTE_ENTITY_TYPES = new Set(["company", "industry", "technology"]);
@@ -871,7 +873,7 @@ async function handleRequest(request, response, options) {
   }
 
   if (request.method === "GET" && url.pathname === "/api/ingestion/status") {
-    const state = await loadIngestionState(options.ingestionStateFile);
+    const state = await options.loadDataState();
     const summary = summarizeIngestionState(state);
     return sendJson(response, 200, {
       summary,
@@ -886,7 +888,7 @@ async function handleRequest(request, response, options) {
     const companyId = companyPriceMatch[1];
     const company = companies[companyId];
     if (!company) return routeError(response, 404, "company not found");
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     const priceRows = persistedPriceRowsForCompany(ingestionState, companyId);
     const snapshot = priceSnapshotFromRows(priceRows, companyId) || company.liveFeeds?.priceSnapshot || {};
     const status = statusFromFeed(company.liveFeeds?.price, snapshot);
@@ -908,7 +910,7 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && companyMeetingsMatch) {
     const companyId = companyMeetingsMatch[1];
     if (!companies[companyId]) return routeError(response, 404, "company not found");
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     return sendJson(response, 200, {
       companyId,
       items: meetingItems(companyId, ingestionState),
@@ -921,7 +923,7 @@ async function handleRequest(request, response, options) {
     const companyId = companyLiveMatch[1];
     const company = publicCompany(companyId);
     if (!company) return routeError(response, 404, "company not found");
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     const priceSnapshot = persistedPriceSnapshotForCompany(ingestionState, companyId) || companies[companyId].liveFeeds?.priceSnapshot || null;
     const feedStatuses = companyFeedStatuses(companyId, ingestionState, priceSnapshot);
     return sendJson(response, 200, {
@@ -939,7 +941,7 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && url.pathname === "/api/live/heatmap") {
     const period = url.searchParams.get("period") || "latest";
     const universe = url.searchParams.get("universe") || "cap";
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     const rows = buildLiveHeatmapRows({
       rangeId: period,
       universeId: universe,
@@ -965,7 +967,7 @@ async function handleRequest(request, response, options) {
   if (request.method === "GET" && url.pathname === "/api/live/filings") {
     const companyId = url.searchParams.get("companyId");
     const industryId = url.searchParams.get("industryId");
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     return sendJson(response, 200, {
       items: filingItems({ companyId, industryId }, ingestionState),
       providerStatuses: companyId && companies[companyId]
@@ -978,7 +980,7 @@ async function handleRequest(request, response, options) {
     const companyId = url.searchParams.get("companyId");
     const industryId = url.searchParams.get("industryId");
     const technologyId = url.searchParams.get("technologyId");
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     return sendJson(response, 200, {
       items: newsItems({ companyId, industryId, technologyId }, ingestionState),
       providerStatuses: companyId && companies[companyId]
@@ -991,7 +993,7 @@ async function handleRequest(request, response, options) {
     const companyId = url.searchParams.get("companyId");
     const company = companyId ? companies[companyId] : null;
     if (companyId && !company) return routeError(response, 404, "company not found");
-    const ingestionState = companyId ? await loadIngestionState(options.ingestionStateFile) : null;
+    const ingestionState = companyId ? await options.loadDataState() : null;
     const chain = companyId ? persistedOptionChainItems(ingestionState, companyId) : [];
     const availability = optionsAvailabilityForChain(company, chain);
     const persistedOptionsStatus = companyId
@@ -1018,7 +1020,7 @@ async function handleRequest(request, response, options) {
     const companyId = url.searchParams.get("companyId");
     if (!technologyCatalog[technologyId]) return routeError(response, 404, "technology not found");
     if (companyId && !companies[companyId]) return routeError(response, 404, "company not found");
-    const ingestionState = await loadIngestionState(options.ingestionStateFile);
+    const ingestionState = await options.loadDataState();
     return sendJson(response, 200, {
       technologyId,
       items: technologyAnnouncementItems(technologyId, { companyId }, ingestionState),
@@ -1045,10 +1047,26 @@ async function handleRequest(request, response, options) {
 }
 
 export function createApiServer(options = {}) {
+  const runtimeConfig = options.runtimeConfig || buildRuntimeConfig({
+    ...process.env,
+    ...(options.dataSource ? { INDUSTRYTOPO_DATA_SOURCE: options.dataSource } : {}),
+    ...(options.databaseUrl ? { DATABASE_URL: options.databaseUrl } : {})
+  });
+  const ingestionStateFile = options.ingestionStateFile || process.env.INDUSTRYTOPO_INGESTION_STATE_FILE || DEFAULT_INGESTION_STATE_FILE;
+  const loadDataState = options.loadDataState || (
+    runtimeConfig.dataSource === "postgres"
+      ? createPostgresStateLoader({
+          databaseUrl: options.databaseUrl || runtimeConfig.databaseUrl,
+          postgresPool: options.postgresPool
+        })
+      : () => loadIngestionState(ingestionStateFile)
+  );
   const resolvedOptions = {
     notesFile: options.notesFile || process.env.INDUSTRYTOPO_NOTES_FILE || DEFAULT_NOTES_FILE,
-    ingestionStateFile: options.ingestionStateFile || process.env.INDUSTRYTOPO_INGESTION_STATE_FILE || DEFAULT_INGESTION_STATE_FILE,
-    jwtSecret: options.jwtSecret || process.env.INDUSTRYTOPO_JWT_SECRET || ""
+    ingestionStateFile,
+    jwtSecret: options.jwtSecret || process.env.INDUSTRYTOPO_JWT_SECRET || "",
+    dataSource: runtimeConfig.dataSource,
+    loadDataState
   };
 
   return createServer((request, response) => {

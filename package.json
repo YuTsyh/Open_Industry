@@ -1,0 +1,15 @@
+{
+  "name": "open-industry",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate:app": "node scripts/validate-app.mjs",
+    "validate:api": "node scripts/validate-api.mjs",
+    "validate:ingestion": "node scripts/validate-ingestion.mjs",
+    "validate:deployment": "node scripts/validate-deployment.mjs",
+    "validate:postgres": "node scripts/validate-postgres-store.mjs"
+  },
+  "dependencies": {
+    "pg": "8.21.0"
+  }
+}

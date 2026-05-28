@@ -87,7 +87,9 @@ assert.ok(!schemaPlan.redacted.includes(fixtureDatabasePassword), "schema apply 
 for (const needle of [
   "DATABASE_URL",
   "INDUSTRYTOPO_DATA_SOURCE=postgres",
+  "npm install",
   "node scripts/validate-deployment.mjs",
+  "node scripts/validate-postgres-store.mjs",
   "node scripts/apply-schema.mjs"
 ]) {
   assert.ok(serverReadme.includes(needle), `server README should document ${needle}`);
