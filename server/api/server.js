@@ -1,7 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   companies,
@@ -20,6 +18,7 @@ import { normalizeEventLinks, resolveCompanyId } from "../ingestion/normalizatio
 import { ingestionProviderContracts } from "../ingestion/providerContracts.js";
 import { buildRuntimeConfig } from "../deployment/env.js";
 import { createPostgresStateLoader } from "./postgresStore.js";
+import { createLocalNotesStore, createPostgresNotesStore } from "./notesStore.js";
 
 const DEFAULT_NOTES_FILE = fileURLToPath(new URL("../data/notes.local.json", import.meta.url));
 const NOTE_ENTITY_TYPES = new Set(["company", "industry", "technology"]);
@@ -84,25 +83,6 @@ function sendJson(response, status, body) {
 
 function routeError(response, status, message) {
   sendJson(response, status, { error: { message } });
-}
-
-async function loadNotes(notesFile) {
-  try {
-    const data = JSON.parse(await readFile(notesFile, "utf8"));
-    return {
-      nextId: data.nextId || 1,
-      users: Array.isArray(data.users) ? data.users : [],
-      notes: Array.isArray(data.notes) ? data.notes : []
-    };
-  } catch (error) {
-    if (error.code === "ENOENT") return { nextId: 1, users: [], notes: [] };
-    throw error;
-  }
-}
-
-async function saveNotes(notesFile, data) {
-  await mkdir(dirname(notesFile), { recursive: true });
-  await writeFile(notesFile, `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
 function publicCompany(companyId) {
@@ -789,11 +769,11 @@ function normalizeNote(raw, user) {
   };
 }
 
-async function handleNotes(request, response, url, notesFile, jwtSecret) {
+async function handleNotes(request, response, url, notesStore, jwtSecret) {
   const user = requireAuth(request, jwtSecret);
   if (!user) return routeError(response, 401, "JWT bearer token is required");
 
-  const data = await loadNotes(notesFile);
+  const data = await notesStore.load();
   if (!data.users.some(item => item.id === user.sub)) {
     data.users.push({
       id: user.sub,
@@ -824,7 +804,7 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
       note.id = data.nextId;
       data.nextId += 1;
       data.notes.push(note);
-      await saveNotes(notesFile, data);
+      await notesStore.save(data);
       return sendJson(response, 201, { note: publicNote(note) });
     } catch (error) {
       return routeError(response, 400, error.message);
@@ -849,7 +829,7 @@ async function handleNotes(request, response, url, notesFile, jwtSecret) {
       note.collaborators = normalizeCollaborators(body.collaborators, note.ownerUserId);
     }
     note.updatedAt = new Date().toISOString();
-    await saveNotes(notesFile, data);
+    await notesStore.save(data);
     return sendJson(response, 200, { note: publicNote(note) });
   }
 
@@ -869,7 +849,7 @@ async function handleRequest(request, response, options) {
   }
 
   if (url.pathname.startsWith("/api/notes")) {
-    return handleNotes(request, response, url, options.notesFile, options.jwtSecret);
+    return handleNotes(request, response, url, options.notesStore, options.jwtSecret);
   }
 
   if (request.method === "GET" && url.pathname === "/api/ingestion/status") {
@@ -1053,6 +1033,7 @@ export function createApiServer(options = {}) {
     ...(options.databaseUrl ? { DATABASE_URL: options.databaseUrl } : {})
   });
   const ingestionStateFile = options.ingestionStateFile || process.env.INDUSTRYTOPO_INGESTION_STATE_FILE || DEFAULT_INGESTION_STATE_FILE;
+  const notesFile = options.notesFile || process.env.INDUSTRYTOPO_NOTES_FILE || DEFAULT_NOTES_FILE;
   const loadDataState = options.loadDataState || (
     runtimeConfig.dataSource === "postgres"
       ? createPostgresStateLoader({
@@ -1061,8 +1042,17 @@ export function createApiServer(options = {}) {
         })
       : () => loadIngestionState(ingestionStateFile)
   );
+  const notesStore = options.notesStore || (
+    runtimeConfig.dataSource === "postgres"
+      ? createPostgresNotesStore({
+          databaseUrl: options.databaseUrl || runtimeConfig.databaseUrl,
+          postgresPool: options.postgresPool
+        })
+      : createLocalNotesStore(notesFile)
+  );
   const resolvedOptions = {
-    notesFile: options.notesFile || process.env.INDUSTRYTOPO_NOTES_FILE || DEFAULT_NOTES_FILE,
+    notesFile,
+    notesStore,
     ingestionStateFile,
     jwtSecret: options.jwtSecret || process.env.INDUSTRYTOPO_JWT_SECRET || "",
     dataSource: runtimeConfig.dataSource,

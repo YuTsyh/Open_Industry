@@ -7,7 +7,8 @@
     "validate:api": "node scripts/validate-api.mjs",
     "validate:ingestion": "node scripts/validate-ingestion.mjs",
     "validate:deployment": "node scripts/validate-deployment.mjs",
-    "validate:postgres": "node scripts/validate-postgres-store.mjs"
+    "validate:postgres": "node scripts/validate-postgres-store.mjs",
+    "validate:postgres-notes": "node scripts/validate-postgres-notes.mjs"
   },
   "dependencies": {
     "pg": "8.21.0"

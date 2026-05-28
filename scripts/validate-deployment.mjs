@@ -90,6 +90,7 @@ for (const needle of [
   "npm install",
   "node scripts/validate-deployment.mjs",
   "node scripts/validate-postgres-store.mjs",
+  "node scripts/validate-postgres-notes.mjs",
   "node scripts/apply-schema.mjs"
 ]) {
   assert.ok(serverReadme.includes(needle), `server README should document ${needle}`);
