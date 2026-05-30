@@ -9,6 +9,7 @@
     "validate:deployment": "node scripts/validate-deployment.mjs",
     "validate:postgres": "node scripts/validate-postgres-store.mjs",
     "validate:postgres-notes": "node scripts/validate-postgres-notes.mjs",
+    "validate:postgres-ingestion": "node scripts/validate-postgres-ingestion-writer.mjs",
     "validate:ingestion-scheduler": "node scripts/validate-ingestion-scheduler.mjs",
     "ingest:scheduled": "node server/ingestion/runner.js --scheduled"
   },

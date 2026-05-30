@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { ingestionProviderContracts } from "./providerContracts.js";
 import { transformProviderRecord } from "./transforms.js";
 import { buildProviderRequestPlan, providerAdapterRegistry } from "./adapters.js";
+import { createPostgresPool } from "../api/postgresStore.js";
+import { writeIngestionStateToPostgres } from "./postgresWriter.js";
 
 export const DEFAULT_INGESTION_STATE_FILE = fileURLToPath(new URL("../data/ingestion-state.local.json", import.meta.url));
 
@@ -186,7 +188,9 @@ export async function runScheduledIngestion({
   now = () => new Date(),
   providerIds = providerIdsFromEnv(env),
   adapters = providerAdapterRegistry,
-  fetchImpl = globalThis.fetch
+  fetchImpl = globalThis.fetch,
+  postgresPool = null,
+  postgresWriter = null
 } = {}) {
   const timestamp = now().toISOString();
   const previous = await loadIngestionState(stateFile);
@@ -268,6 +272,18 @@ export async function runScheduledIngestion({
     ingestionRuns: [...runs, ...previous.ingestionRuns].slice(0, 200),
     transformedRows: [...transformedRows, ...previous.transformedRows].slice(0, 500)
   };
+  if (postgresWriter || postgresPool) {
+    const postgresState = {
+      feedStatuses,
+      ingestionRuns: runs,
+      transformedRows
+    };
+    if (postgresWriter) {
+      await postgresWriter(postgresState, { now });
+    } else {
+      await writeIngestionStateToPostgres(postgresPool, postgresState, { now });
+    }
+  }
   await saveIngestionState(stateFile, state);
   return { ...state, runs, transformedRows };
 }
@@ -347,12 +363,24 @@ export function summarizeIngestionState(state = emptyState()) {
   };
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+async function runCli() {
   const stateFile = process.env.INDUSTRYTOPO_INGESTION_STATE_FILE || DEFAULT_INGESTION_STATE_FILE;
   const scheduled = process.argv.includes("--scheduled");
-  const result = scheduled
-    ? await runScheduledIngestion({ stateFile })
-    : await runIngestionDryRun({ stateFile });
-  const summary = summarizeIngestionState(result);
-  console.log(JSON.stringify({ mode: scheduled ? "scheduled" : "dry-run", summary, recentRuns: result.runs }, null, 2));
+  let postgresPool = null;
+  try {
+    if (scheduled && process.env.INDUSTRYTOPO_DATA_SOURCE === "postgres") {
+      postgresPool = await createPostgresPool();
+    }
+    const result = scheduled
+      ? await runScheduledIngestion({ stateFile, postgresPool })
+      : await runIngestionDryRun({ stateFile });
+    const summary = summarizeIngestionState(result);
+    console.log(JSON.stringify({ mode: scheduled ? "scheduled" : "dry-run", summary, recentRuns: result.runs }, null, 2));
+  } finally {
+    await postgresPool?.end?.();
+  }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  await runCli();
 }

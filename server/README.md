@@ -47,9 +47,11 @@ Current executable API scaffold:
 - `node scripts/validate-deployment.mjs` verifies the production environment contract without printing secret values
 - `node scripts/validate-postgres-store.mjs` verifies PostgreSQL table reads are mapped into the live API contract
 - `node scripts/validate-postgres-notes.mjs` verifies PostgreSQL-backed note creation, collaborator access, and editor updates
+- `node scripts/validate-postgres-ingestion-writer.mjs` verifies scheduled ingestion can persist feed statuses, runs, and transformed rows into PostgreSQL using parameterized writes
 - `node scripts/apply-schema.mjs --dry-run` prints the redacted `psql` command; `node scripts/apply-schema.mjs` applies `server/schema.sql` using `DATABASE_URL`
 - `node server/ingestion/runner.js` performs a no-network dry run over provider contracts and writes `feed_statuses` / `ingestion_runs` shaped status to the local ingestion store
 - `npm run ingest:scheduled` executes the scheduled ingestion entrypoint; scope production runs with `INDUSTRYTOPO_ENABLED_PROVIDERS=twse-daily-prices,mops-filings-events,...` and configure only licensed provider secrets in the environment
+- When `INDUSTRYTOPO_DATA_SOURCE=postgres`, `npm run ingest:scheduled` also writes the current scheduled run to PostgreSQL (`feed_statuses`, `ingestion_runs`, and supported transformed record tables) while still updating the local status snapshot
 - The scheduled adapter registry includes `twse-daily-prices`, which reads the official TWSE `STOCK_DAY_ALL` OpenAPI endpoint, keeps only covered TW tickers, and labels rows as delayed with source timestamps
 - The scheduled adapter registry currently includes `technology-official-announcements`, which fetches public official source pages from `officialSources.js`, parses source-backed titles/summaries, and maps them to linked company, industry, and technology ids
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
