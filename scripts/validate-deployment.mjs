@@ -21,6 +21,7 @@ assert.match(gitignore, /^!\.env\.example$/m, "repo should allow a committed bla
 for (const key of [
   "DATABASE_URL",
   "INDUSTRYTOPO_JWT_SECRET",
+  "SEC_EDGAR_USER_AGENT",
   "JQUANTS_REFRESH_TOKEN",
   "US_EQUITY_DATA_API_KEY",
   "US_OPTIONS_DATA_API_KEY"
@@ -59,7 +60,8 @@ const productionReady = deploymentChecks({
   INDUSTRYTOPO_DATA_SOURCE: "postgres",
   DATABASE_URL: fixtureDatabaseUrl,
   INDUSTRYTOPO_JWT_SECRET: "x".repeat(32),
-  INDUSTRYTOPO_ENABLED_PROVIDERS: "twse-daily-prices,mops-filings-events,us-options",
+  INDUSTRYTOPO_ENABLED_PROVIDERS: "twse-daily-prices,mops-filings-events,sec-edgar-filings,us-options",
+  SEC_EDGAR_USER_AGENT: "IndustryTopo ops@example.com",
   US_OPTIONS_DATA_API_KEY: "configured"
 });
 assert.equal(productionReady.ok, true, "production env should pass with PostgreSQL, JWT and enabled provider secrets configured");

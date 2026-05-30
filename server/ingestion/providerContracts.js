@@ -46,7 +46,7 @@ export const ingestionProviderContracts = [
     markets: ["US"],
     sourceKeys: ["secEdgar"],
     outputTables: ["filings", "news_events", "meetings", "feed_statuses", "ingestion_runs"],
-    requiredSecrets: [],
+    requiredSecrets: ["SEC_EDGAR_USER_AGENT"],
     licenseBoundary: "Use a compliant User-Agent and rate-limit requests; preserve accession/source URLs."
   },
   {

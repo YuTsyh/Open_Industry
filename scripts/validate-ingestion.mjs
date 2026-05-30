@@ -188,7 +188,7 @@ try {
 
   const sampledDryRun = await runIngestionDryRun({
     stateFile,
-    env: { US_OPTIONS_DATA_API_KEY: "test-options-key" },
+    env: { US_OPTIONS_DATA_API_KEY: "test-options-key", SEC_EDGAR_USER_AGENT: "IndustryTopo tests ops@example.com" },
     now: () => new Date("2026-05-23T00:05:00.000Z"),
     adapterSamples: {
       "twse-daily-prices": [

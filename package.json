@@ -11,6 +11,7 @@
     "validate:postgres-notes": "node scripts/validate-postgres-notes.mjs",
     "validate:postgres-ingestion": "node scripts/validate-postgres-ingestion-writer.mjs",
     "validate:ingestion-scheduler": "node scripts/validate-ingestion-scheduler.mjs",
+    "validate:sec-edgar": "node scripts/validate-sec-edgar-adapter.mjs",
     "ingest:scheduled": "node server/ingestion/runner.js --scheduled"
   },
   "dependencies": {

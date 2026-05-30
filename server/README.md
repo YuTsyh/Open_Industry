@@ -43,6 +43,7 @@ Current executable API scaffold:
 - `INDUSTRYTOPO_NOTES_FILE` overrides the local notes JSON store
 - `INDUSTRYTOPO_INGESTION_STATE_FILE` overrides the local ingestion status JSON store
 - `INDUSTRYTOPO_ENABLED_PROVIDERS` is a comma-separated list of provider contract ids to enable in production; any required secrets must be present in the environment
+- `SEC_EDGAR_USER_AGENT` is required for SEC EDGAR ingestion and should identify the app plus an operations contact email, per SEC automated-access guidance
 - `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
 - `node scripts/validate-deployment.mjs` verifies the production environment contract without printing secret values
 - `node scripts/validate-postgres-store.mjs` verifies PostgreSQL table reads are mapped into the live API contract
@@ -53,6 +54,7 @@ Current executable API scaffold:
 - `npm run ingest:scheduled` executes the scheduled ingestion entrypoint; scope production runs with `INDUSTRYTOPO_ENABLED_PROVIDERS=twse-daily-prices,mops-filings-events,...` and configure only licensed provider secrets in the environment
 - When `INDUSTRYTOPO_DATA_SOURCE=postgres`, `npm run ingest:scheduled` also writes the current scheduled run to PostgreSQL (`feed_statuses`, `ingestion_runs`, and supported transformed record tables) while still updating the local status snapshot
 - The scheduled adapter registry includes `twse-daily-prices`, which reads the official TWSE `STOCK_DAY_ALL` OpenAPI endpoint, keeps only covered TW tickers, and labels rows as delayed with source timestamps
+- The scheduled adapter registry includes `sec-edgar-filings`, which reads SEC's official ticker/CIK mapping and public submissions API, then stores covered U.S. company filings with accession URLs and source timestamps
 - The scheduled adapter registry currently includes `technology-official-announcements`, which fetches public official source pages from `officialSources.js`, parses source-backed titles/summaries, and maps them to linked company, industry, and technology ids
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
 - Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`
