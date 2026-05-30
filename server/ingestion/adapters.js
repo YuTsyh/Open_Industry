@@ -5,6 +5,8 @@ import {
   officialSources
 } from "../../src/data.js";
 
+const TWSE_STOCK_DAY_ALL_URL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
+
 function compact(value) {
   return String(value ?? "").trim();
 }
@@ -60,6 +62,31 @@ function responseDate(response) {
   if (!raw) return null;
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function datePart(timestamp, now = () => new Date()) {
+  const parsed = timestamp ? new Date(timestamp) : now();
+  if (Number.isNaN(parsed.getTime())) return now().toISOString().slice(0, 10);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function numberText(value) {
+  const normalized = compact(value).replaceAll(",", "");
+  if (!normalized || normalized === "--" || normalized === "-") return "";
+  return normalized;
+}
+
+function twseTicker(code) {
+  const normalized = compact(code);
+  return normalized ? `${normalized}.TW` : "";
+}
+
+function coveredTwTickers() {
+  return new Set(
+    Object.values(companies)
+      .filter(company => company.market === "TW")
+      .map(company => company.ticker)
+  );
 }
 
 function hasSourceKey(value, sourceKey) {
@@ -127,7 +154,47 @@ export async function fetchOfficialTechnologyAnnouncements({
   };
 }
 
+export async function fetchTwseDailyPrices({
+  contract,
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const response = await fetchImpl(TWSE_STOCK_DAY_ALL_URL);
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"}`);
+  }
+
+  const rows = await response.json();
+  if (!Array.isArray(rows)) throw new Error(`${contract.provider} returned an unexpected payload`);
+
+  const sourceTimestamp = responseDate(response) || now().toISOString();
+  const tradeDate = datePart(sourceTimestamp, now);
+  const covered = coveredTwTickers();
+  const records = rows
+    .map(row => ({
+      feedType: "price",
+      provider: contract.provider,
+      market: "TW",
+      ticker: twseTicker(row.Code || row.code || row.SecuritiesCompanyCode),
+      tradeDate,
+      open: numberText(row.OpeningPrice || row.open),
+      high: numberText(row.HighestPrice || row.high),
+      low: numberText(row.LowestPrice || row.low),
+      close: numberText(row.ClosingPrice || row.close),
+      volume: numberText(row.TradeVolume || row.volume),
+      sourceTimestamp
+    }))
+    .filter(record => covered.has(record.ticker) && record.close);
+
+  return {
+    status: "delayed",
+    latestSourceTimestamp: sourceTimestamp,
+    records
+  };
+}
+
 export const providerAdapterRegistry = {
+  "twse-daily-prices": fetchTwseDailyPrices,
   "technology-official-announcements": fetchOfficialTechnologyAnnouncements
 };
 

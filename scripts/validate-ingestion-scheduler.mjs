@@ -220,6 +220,87 @@ try {
     row.table === "technology_announcements" &&
     row.record.source_id === "tsmc3dFabric"
   ), "scheduled runner should use the registered official-source adapter by default");
+
+  const twseAdapter = providerAdapterRegistry["twse-daily-prices"];
+  assert.equal(typeof twseAdapter, "function", "TWSE daily prices should have a scheduled adapter");
+  const twseFetchedUrls = [];
+  const twseAdapterResult = await twseAdapter({
+    contract: twseContract,
+    fetchImpl: async url => {
+      twseFetchedUrls.push(url);
+      return {
+        ok: true,
+        status: 200,
+        headers: {
+          get(name) {
+            return name.toLowerCase() === "date" ? "Tue, 26 May 2026 06:00:00 GMT" : "";
+          }
+        },
+        async json() {
+          return [
+            {
+              Code: "2330",
+              Name: "台積電",
+              TradeVolume: "35,000,000",
+              OpeningPrice: "2,510.00",
+              HighestPrice: "2,555.00",
+              LowestPrice: "2,490.00",
+              ClosingPrice: "2,540.00"
+            },
+            {
+              Code: "9999",
+              Name: "Untracked",
+              TradeVolume: "1",
+              OpeningPrice: "1",
+              HighestPrice: "1",
+              LowestPrice: "1",
+              ClosingPrice: "1"
+            }
+          ];
+        }
+      };
+    },
+    now: () => new Date("2026-05-26T12:00:00.000Z")
+  });
+  assert.equal(twseAdapterResult.status, "delayed");
+  assert.deepEqual(twseFetchedUrls, ["https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"]);
+  assert.equal(twseAdapterResult.records.length, 1, "TWSE adapter should keep only covered TW companies");
+  assert.equal(twseAdapterResult.records[0].ticker, "2330.TW");
+  assert.equal(twseAdapterResult.records[0].tradeDate, "2026-05-26");
+  assert.equal(twseAdapterResult.records[0].close, "2540.00");
+  assert.equal(twseAdapterResult.records[0].volume, "35000000");
+  assert.equal(twseAdapterResult.records[0].sourceTimestamp, "2026-05-26T06:00:00.000Z");
+
+  const twseOfficialRun = await runScheduledIngestion({
+    stateFile,
+    providerIds: ["twse-daily-prices"],
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "Tue, 26 May 2026 06:00:00 GMT" },
+      async json() {
+        return [{
+          Code: "2330",
+          Name: "台積電",
+          TradeVolume: "35,000,000",
+          OpeningPrice: "2,510.00",
+          HighestPrice: "2,555.00",
+          LowestPrice: "2,490.00",
+          ClosingPrice: "2,540.00"
+        }];
+      }
+    }),
+    now: () => new Date("2026-05-26T12:45:00.000Z")
+  });
+  assert.equal(twseOfficialRun.runs[0].status, "succeeded");
+  assert.equal(twseOfficialRun.feedStatuses[0].status, "delayed");
+  assert.equal(twseOfficialRun.feedStatuses[0].latestSourceTimestamp, "2026-05-26T06:00:00.000Z");
+  assert.ok(twseOfficialRun.transformedRows.some(row =>
+    row.providerId === "twse-daily-prices" &&
+    row.table === "daily_prices" &&
+    row.record.ticker === "2330.TW" &&
+    row.record.close === 2540
+  ), "scheduled runner should use the registered TWSE adapter by default");
 } finally {
   await rm(tempDir, { recursive: true, force: true });
 }
