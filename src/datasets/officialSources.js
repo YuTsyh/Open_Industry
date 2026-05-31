@@ -19,6 +19,10 @@ export const officialSources = {
     label: "JPX listed company search",
     url: "https://www.jpx.co.jp/english/listing/co-search/"
   },
+  jpxTdnetApi: {
+    label: "JPX TDnet API Service",
+    url: "https://www.jpx.co.jp/english/markets/paid-info-listing/tdnet/02.html"
+  },
   secEdgar: {
     label: "SEC EDGAR APIs",
     url: "https://www.sec.gov/edgar/sec-api-documentation"

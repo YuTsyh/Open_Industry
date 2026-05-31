@@ -32,12 +32,12 @@ export const ingestionProviderContracts = [
   {
     id: "jpx-disclosures",
     feedType: "filings",
-    provider: "JPX listed company search",
+    provider: "JPX TDnet API",
     markets: ["JP"],
-    sourceKeys: ["jpxListedCompanySearch", "jpxJQuants"],
+    sourceKeys: ["jpxTdnetApi", "jpxListedCompanySearch"],
     outputTables: ["filings", "news_events", "feed_statuses", "ingestion_runs"],
-    requiredSecrets: [],
-    licenseBoundary: "Keep issuer ids and source URLs so Japanese disclosures remain auditable."
+    requiredSecrets: ["TDNET_API_BASE_URL", "TDNET_API_KEY"],
+    licenseBoundary: "Use only a contracted TDnet API endpoint; preserve issuer ids, disclosure document URLs, and source timestamps."
   },
   {
     id: "sec-edgar-filings",

@@ -137,6 +137,7 @@ function coveredJpCompanies() {
     .filter(([, company]) => company.market === "JP")
     .map(([companyId, company]) => ({
       companyId,
+      name: company.name,
       ticker: compact(company.ticker).toUpperCase(),
       code: jquantsCodeFromTicker(company.ticker)
     }))
@@ -147,6 +148,10 @@ function jquantsMaxQuotesPerCompany(env = {}) {
   const parsed = Number(env.JQUANTS_MAX_QUOTES_PER_COMPANY);
   if (!Number.isFinite(parsed) || parsed <= 0) return 5;
   return Math.max(1, Math.floor(parsed));
+}
+
+function jpxCompanyByTicker() {
+  return new Map(coveredJpCompanies().map(company => [company.ticker, company]));
 }
 
 function hasSourceKey(value, sourceKey) {
@@ -342,6 +347,126 @@ export async function fetchJpxJQuantsDailyPrices({
 
   return {
     status: "delayed",
+    latestSourceTimestamp: responseTimestamps.filter(Boolean).sort().at(-1) || null,
+    records
+  };
+}
+
+function tdnetMaxDisclosuresPerCompany(env = {}) {
+  const parsed = Number(env.TDNET_MAX_DISCLOSURES_PER_COMPANY);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 5;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function withQuery(url, params = {}) {
+  const parsed = new URL(url);
+  for (const [key, value] of Object.entries(params)) {
+    if (value != null && value !== "") parsed.searchParams.set(key, value);
+  }
+  return parsed.toString();
+}
+
+function tdnetRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of ["disclosures", "items", "results", "data"]) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+}
+
+function tdnetValue(row = {}, ...keys) {
+  for (const key of keys) {
+    const value = row[key];
+    if (value != null && value !== "") return value;
+  }
+  return "";
+}
+
+function tdnetSourceUrl(row = {}) {
+  return compact(tdnetValue(row, "sourceUrl", "source_url", "documentUrl", "document_url", "pdfUrl", "pdf_url", "url"));
+}
+
+function tdnetSummary(row = {}) {
+  return singleLine(tdnetValue(row, "summary", "description", "abstract", "body")) ||
+    singleLine(tdnetValue(row, "disclosureTitle", "title"));
+}
+
+async function fetchTdnetJson({ fetchImpl = globalThis.fetch, contract, env, code, limit }) {
+  const url = withQuery(compact(env.TDNET_API_BASE_URL), { code, limit });
+  const response = await fetchImpl(url, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${compact(env.TDNET_API_KEY)}`
+    }
+  });
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"} for disclosure code ${code}`);
+  }
+
+  return {
+    payload: await response.json(),
+    sourceTimestamp: responseDate(response)
+  };
+}
+
+export async function fetchJpxTdnetDisclosures({
+  contract,
+  env = {},
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const baseUrl = compact(env.TDNET_API_BASE_URL);
+  const apiKey = compact(env.TDNET_API_KEY);
+  if (!baseUrl) throw new Error("TDNET_API_BASE_URL is required for JPX TDnet ingestion");
+  if (!apiKey) throw new Error("TDNET_API_KEY is required for JPX TDnet ingestion");
+
+  const maxDisclosures = tdnetMaxDisclosuresPerCompany(env);
+  const covered = jpxCompanyByTicker();
+  const records = [];
+  const responseTimestamps = [];
+
+  for (const company of coveredJpCompanies()) {
+    const { payload, sourceTimestamp } = await fetchTdnetJson({
+      fetchImpl,
+      contract,
+      env,
+      code: company.code,
+      limit: maxDisclosures
+    });
+    const timestamp = sourceTimestamp || now().toISOString();
+    responseTimestamps.push(timestamp);
+
+    const rows = tdnetRows(payload)
+      .slice()
+      .sort((left, right) => compact(tdnetValue(right, "disclosedAt", "publishedAt", "dateTime", "date")).localeCompare(
+        compact(tdnetValue(left, "disclosedAt", "publishedAt", "dateTime", "date"))
+      ))
+      .slice(0, maxDisclosures);
+
+    for (const row of rows) {
+      const ticker = jpxTickerFromJquantsCode(tdnetValue(row, "securityCode", "issuerCode", "code", "securitiesCode") || company.code);
+      const coveredCompany = covered.get(ticker);
+      const sourceUrl = tdnetSourceUrl(row);
+      if (!coveredCompany || !sourceUrl) continue;
+
+      records.push({
+        feedType: "filings",
+        provider: contract.provider,
+        sourceId: "jpxTdnetApi",
+        ticker,
+        companyId: coveredCompany.companyId,
+        filingType: compact(tdnetValue(row, "disclosureType", "category", "documentType", "type")) || "tdnet_disclosure",
+        title: compact(tdnetValue(row, "title", "disclosureTitle")) || `${coveredCompany.name} TDnet disclosure`,
+        publishedAt: compact(tdnetValue(row, "disclosedAt", "publishedAt", "dateTime", "date")) || null,
+        sourceTimestamp: timestamp,
+        sourceUrl,
+        summary: tdnetSummary(row)
+      });
+    }
+  }
+
+  return {
+    status: "licensed",
     latestSourceTimestamp: responseTimestamps.filter(Boolean).sort().at(-1) || null,
     records
   };
@@ -569,6 +694,7 @@ export async function fetchSecEdgarFilings({
 
 export const providerAdapterRegistry = {
   "jpx-jquants-prices": fetchJpxJQuantsDailyPrices,
+  "jpx-disclosures": fetchJpxTdnetDisclosures,
   "mops-filings-events": fetchMopsFilingsEvents,
   "twse-daily-prices": fetchTwseDailyPrices,
   "sec-edgar-filings": fetchSecEdgarFilings,
