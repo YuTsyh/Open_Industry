@@ -45,6 +45,7 @@ Current executable API scaffold:
 - `INDUSTRYTOPO_ENABLED_PROVIDERS` is a comma-separated list of provider contract ids to enable in production; any required secrets must be present in the environment
 - `SEC_EDGAR_USER_AGENT` is required for SEC EDGAR ingestion and should identify the app plus an operations contact email, per SEC automated-access guidance
 - `TDNET_API_BASE_URL` and `TDNET_API_KEY` are required when enabling `jpx-disclosures`; use a contracted JPX TDnet API endpoint, not the public browser search page
+- `US_EQUITY_DATA_BASE_URL` and `US_EQUITY_DATA_API_KEY` are required when enabling `us-equity-prices`; use a subscribed Nasdaq Data Link endpoint and keep the API key out of URLs/logs
 - `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
 - `node scripts/validate-deployment.mjs` verifies the production environment contract without printing secret values
 - `node scripts/validate-postgres-store.mjs` verifies PostgreSQL table reads are mapped into the live API contract
@@ -57,6 +58,7 @@ Current executable API scaffold:
 - The scheduled adapter registry includes `twse-daily-prices`, which reads the official TWSE `STOCK_DAY_ALL` OpenAPI endpoint, keeps only covered TW tickers, and labels rows as delayed with source timestamps
 - The scheduled adapter registry includes `jpx-jquants-prices`, which uses `JQUANTS_REFRESH_TOKEN` to request an ID token, reads J-Quants daily OHLC quotes for covered JP tickers, and labels rows as delayed with provider/source timestamps
 - The scheduled adapter registry includes `jpx-disclosures`, which reads a contracted JPX TDnet API JSON endpoint for covered JP issuers and stores source-backed filing cards with disclosure document URLs
+- The scheduled adapter registry includes `us-equity-prices`, which reads a subscribed Nasdaq Data Link JSON endpoint for covered U.S. tickers and labels OHLC rows as delayed with provider/source timestamps
 - The scheduled adapter registry includes `mops-filings-events`, which reads TWSE/MOPS daily material-information OpenAPI rows, keeps only covered TW companies, and stores source-backed filing cards
 - The scheduled adapter registry includes `sec-edgar-filings`, which reads SEC's official ticker/CIK mapping and public submissions API, then stores covered U.S. company filings with accession URLs and source timestamps
 - The scheduled adapter registry currently includes `technology-official-announcements`, which fetches public official source pages from `officialSources.js`, parses source-backed titles/summaries, and maps them to linked company, industry, and technology ids

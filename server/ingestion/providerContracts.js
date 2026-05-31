@@ -52,12 +52,12 @@ export const ingestionProviderContracts = [
   {
     id: "us-equity-prices",
     feedType: "price",
-    provider: "Licensed U.S. equity vendor",
+    provider: "Nasdaq Data Link",
     markets: ["US"],
     sourceKeys: ["nasdaqDataLink"],
     outputTables: ["daily_prices", "price_snapshots", "feed_statuses", "ingestion_runs"],
-    requiredSecrets: ["US_EQUITY_DATA_API_KEY"],
-    licenseBoundary: "Do not show real-time U.S. equity data unless the configured vendor license permits redistribution."
+    requiredSecrets: ["US_EQUITY_DATA_BASE_URL", "US_EQUITY_DATA_API_KEY"],
+    licenseBoundary: "Use only a subscribed Nasdaq Data Link endpoint; label delayed/historical rows with provider and source timestamp."
   },
   {
     id: "us-options",

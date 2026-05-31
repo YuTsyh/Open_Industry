@@ -15,6 +15,7 @@
     "validate:sec-edgar": "node scripts/validate-sec-edgar-adapter.mjs",
     "validate:jquants": "node scripts/validate-jquants-adapter.mjs",
     "validate:jpx-disclosures": "node scripts/validate-jpx-disclosures-adapter.mjs",
+    "validate:us-equity": "node scripts/validate-us-equity-prices-adapter.mjs",
     "ingest:scheduled": "node server/ingestion/runner.js --scheduled"
   },
   "dependencies": {

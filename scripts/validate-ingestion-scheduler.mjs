@@ -90,6 +90,7 @@ try {
   const result = await runScheduledIngestion({
     stateFile,
     env: {
+      US_EQUITY_DATA_BASE_URL: "https://licensed.example.test/us-equity",
       US_EQUITY_DATA_API_KEY: secretValue
     },
     providerIds: [
@@ -128,7 +129,7 @@ try {
 
   const twseStatus = result.feedStatuses.find(status => status.provider === "TWSE OpenAPI");
   const jpxStatus = result.feedStatuses.find(status => status.provider === "JPX J-Quants");
-  const usStatus = result.feedStatuses.find(status => status.provider === "Licensed U.S. equity vendor");
+  const usStatus = result.feedStatuses.find(status => status.provider === "Nasdaq Data Link");
   assert.equal(twseStatus.status, "delayed");
   assert.equal(twseStatus.latestSourceTimestamp, "2026-05-26T06:00:00Z");
   assert.equal(jpxStatus.status, "not-available");

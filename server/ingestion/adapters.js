@@ -120,6 +120,16 @@ function coveredUsCompanies() {
     .filter(company => company.ticker);
 }
 
+function usEquityMaxQuotesPerCompany(env = {}) {
+  const parsed = Number(env.US_EQUITY_MAX_QUOTES_PER_COMPANY);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 5;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function usEquityTickerParam(env = {}) {
+  return compact(env.US_EQUITY_DATA_TICKER_PARAM) || "ticker";
+}
+
 function jquantsCodeFromTicker(ticker) {
   const baseCode = compact(ticker).toUpperCase().replace(/\.T$/, "");
   return /^\d{4}$/.test(baseCode) ? `${baseCode}0` : "";
@@ -340,6 +350,119 @@ export async function fetchJpxJQuantsDailyPrices({
         low: row.Low ?? row.low,
         close: row.Close ?? row.close,
         volume: row.Volume ?? row.volume,
+        sourceTimestamp: timestamp
+      });
+    }
+  }
+
+  return {
+    status: "delayed",
+    latestSourceTimestamp: responseTimestamps.filter(Boolean).sort().at(-1) || null,
+    records
+  };
+}
+
+function tableRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.data)) return payload.data;
+
+  const table = payload?.datatable || payload?.table;
+  const data = Array.isArray(table?.data) ? table.data : [];
+  const columns = Array.isArray(table?.columns) ? table.columns : [];
+  if (!data.length || !columns.length) return [];
+
+  const columnNames = columns.map(column => compact(column?.name || column));
+  return data.map(row => Object.fromEntries(columnNames.map((name, index) => [name, row[index]])));
+}
+
+function recordValue(row = {}, ...keys) {
+  for (const key of keys) {
+    if (row[key] != null && row[key] !== "") return row[key];
+  }
+
+  const entries = Object.entries(row);
+  for (const key of keys) {
+    const normalizedKey = key.toLowerCase().replace(/[_\s-]/g, "");
+    const match = entries.find(([candidate]) => candidate.toLowerCase().replace(/[_\s-]/g, "") === normalizedKey);
+    if (match && match[1] != null && match[1] !== "") return match[1];
+  }
+  return "";
+}
+
+async function fetchUsEquityJson({ fetchImpl = globalThis.fetch, contract, env, ticker, limit }) {
+  const url = withQuery(compact(env.US_EQUITY_DATA_BASE_URL), {
+    [usEquityTickerParam(env)]: ticker,
+    limit
+  });
+  const response = await fetchImpl(url, {
+    headers: {
+      Accept: "application/json",
+      "X-Api-Token": compact(env.US_EQUITY_DATA_API_KEY)
+    }
+  });
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"} for ticker ${ticker}`);
+  }
+
+  return {
+    payload: await response.json(),
+    sourceTimestamp: responseDate(response)
+  };
+}
+
+export async function fetchUsEquityDailyPrices({
+  contract,
+  env = {},
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const baseUrl = compact(env.US_EQUITY_DATA_BASE_URL);
+  const apiKey = compact(env.US_EQUITY_DATA_API_KEY);
+  if (!baseUrl) throw new Error("US_EQUITY_DATA_BASE_URL is required for licensed U.S. equity ingestion");
+  if (!apiKey) throw new Error("US_EQUITY_DATA_API_KEY is required for licensed U.S. equity ingestion");
+
+  const maxQuotes = usEquityMaxQuotesPerCompany(env);
+  const covered = new Set(coveredUsCompanies().map(company => company.ticker));
+  const records = [];
+  const responseTimestamps = [];
+
+  for (const company of coveredUsCompanies()) {
+    const { payload, sourceTimestamp } = await fetchUsEquityJson({
+      fetchImpl,
+      contract,
+      env,
+      ticker: company.ticker,
+      limit: maxQuotes
+    });
+    const timestamp = sourceTimestamp || now().toISOString();
+    responseTimestamps.push(timestamp);
+
+    const rows = tableRows(payload)
+      .slice()
+      .sort((left, right) => compact(recordValue(right, "tradeDate", "trade_date", "date")).localeCompare(
+        compact(recordValue(left, "tradeDate", "trade_date", "date"))
+      ))
+      .slice(0, maxQuotes);
+
+    for (const row of rows) {
+      const ticker = compact(recordValue(row, "ticker", "symbol")).toUpperCase() || company.ticker;
+      const close = recordValue(row, "close", "close_price", "closingPrice", "last");
+      if (!covered.has(ticker) || close === "") continue;
+
+      records.push({
+        feedType: "price",
+        provider: contract.provider,
+        market: "US",
+        ticker,
+        tradeDate: compact(recordValue(row, "tradeDate", "trade_date", "date")),
+        open: recordValue(row, "open", "open_price", "openingPrice"),
+        high: recordValue(row, "high", "high_price", "highestPrice"),
+        low: recordValue(row, "low", "low_price", "lowestPrice"),
+        close,
+        volume: recordValue(row, "volume", "tradeVolume"),
         sourceTimestamp: timestamp
       });
     }
@@ -693,6 +816,7 @@ export async function fetchSecEdgarFilings({
 }
 
 export const providerAdapterRegistry = {
+  "us-equity-prices": fetchUsEquityDailyPrices,
   "jpx-jquants-prices": fetchJpxJQuantsDailyPrices,
   "jpx-disclosures": fetchJpxTdnetDisclosures,
   "mops-filings-events": fetchMopsFilingsEvents,
