@@ -7,6 +7,8 @@ import {
 
 const TWSE_STOCK_DAY_ALL_URL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
 const MOPS_DAILY_MATERIAL_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap04_L";
+const JQUANTS_AUTH_REFRESH_URL = "https://api.jquants.com/v1/token/auth_refresh";
+const JQUANTS_DAILY_QUOTES_URL = "https://api.jquants.com/v1/prices/daily_quotes";
 const SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_SUBMISSIONS_BASE_URL = "https://data.sec.gov/submissions";
 const DEFAULT_SEC_FORMS = ["10-K", "10-Q", "8-K", "20-F", "40-F", "6-K"];
@@ -118,6 +120,35 @@ function coveredUsCompanies() {
     .filter(company => company.ticker);
 }
 
+function jquantsCodeFromTicker(ticker) {
+  const baseCode = compact(ticker).toUpperCase().replace(/\.T$/, "");
+  return /^\d{4}$/.test(baseCode) ? `${baseCode}0` : "";
+}
+
+function jpxTickerFromJquantsCode(code) {
+  const digits = compact(code).replace(/\D/g, "");
+  if (digits.length >= 5 && digits.endsWith("0")) return `${digits.slice(0, 4)}.T`;
+  if (digits.length >= 4) return `${digits.slice(0, 4)}.T`;
+  return "";
+}
+
+function coveredJpCompanies() {
+  return Object.entries(companies)
+    .filter(([, company]) => company.market === "JP")
+    .map(([companyId, company]) => ({
+      companyId,
+      ticker: compact(company.ticker).toUpperCase(),
+      code: jquantsCodeFromTicker(company.ticker)
+    }))
+    .filter(company => company.ticker && company.code);
+}
+
+function jquantsMaxQuotesPerCompany(env = {}) {
+  const parsed = Number(env.JQUANTS_MAX_QUOTES_PER_COMPANY);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 5;
+  return Math.max(1, Math.floor(parsed));
+}
+
 function hasSourceKey(value, sourceKey) {
   if (!value) return false;
   if (Array.isArray(value)) return value.includes(sourceKey) || value.some(item => hasSourceKey(item, sourceKey));
@@ -218,6 +249,100 @@ export async function fetchTwseDailyPrices({
   return {
     status: "delayed",
     latestSourceTimestamp: sourceTimestamp,
+    records
+  };
+}
+
+async function fetchJquantsIdToken({ env = {}, fetchImpl = globalThis.fetch, contract }) {
+  const refreshToken = compact(env.JQUANTS_REFRESH_TOKEN);
+  if (!refreshToken) throw new Error("JQUANTS_REFRESH_TOKEN is required for J-Quants ingestion");
+
+  const response = await fetchImpl(`${JQUANTS_AUTH_REFRESH_URL}?refreshtoken=${encodeURIComponent(refreshToken)}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} auth returned HTTP ${response?.status || "unknown"}`);
+  }
+
+  const payload = await response.json();
+  const idToken = compact(payload.idToken || payload.id_token);
+  if (!idToken) throw new Error(`${contract.provider} auth returned an unexpected payload`);
+  return idToken;
+}
+
+async function fetchJquantsDailyQuotes({ fetchImpl = globalThis.fetch, contract, code, idToken }) {
+  const response = await fetchImpl(`${JQUANTS_DAILY_QUOTES_URL}?code=${encodeURIComponent(code)}`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${idToken}`
+    }
+  });
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"} for daily quotes code ${code}`);
+  }
+
+  const payload = await response.json();
+  if (!Array.isArray(payload?.daily_quotes)) throw new Error(`${contract.provider} returned an unexpected payload`);
+  return {
+    rows: payload.daily_quotes,
+    sourceTimestamp: responseDate(response)
+  };
+}
+
+export async function fetchJpxJQuantsDailyPrices({
+  contract,
+  env = {},
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const idToken = await fetchJquantsIdToken({ env, fetchImpl, contract });
+  const maxQuotes = jquantsMaxQuotesPerCompany(env);
+  const jpCompanies = coveredJpCompanies();
+  const covered = new Set(jpCompanies.map(company => company.ticker));
+  const records = [];
+  const responseTimestamps = [];
+
+  for (const company of jpCompanies) {
+    const { rows, sourceTimestamp } = await fetchJquantsDailyQuotes({
+      fetchImpl,
+      contract,
+      code: company.code,
+      idToken
+    });
+    const timestamp = sourceTimestamp || now().toISOString();
+    responseTimestamps.push(timestamp);
+
+    const quoteRows = rows
+      .slice()
+      .sort((left, right) => compact(right.Date || right.date).localeCompare(compact(left.Date || left.date)))
+      .slice(0, maxQuotes);
+
+    for (const row of quoteRows) {
+      const ticker = jpxTickerFromJquantsCode(row.Code || row.code || company.code);
+      if (!covered.has(ticker) || row.Close == null || row.Close === "") continue;
+
+      records.push({
+        feedType: "price",
+        provider: contract.provider,
+        market: "JP",
+        ticker,
+        tradeDate: compact(row.Date || row.date),
+        open: row.Open ?? row.open,
+        high: row.High ?? row.high,
+        low: row.Low ?? row.low,
+        close: row.Close ?? row.close,
+        volume: row.Volume ?? row.volume,
+        sourceTimestamp: timestamp
+      });
+    }
+  }
+
+  return {
+    status: "delayed",
+    latestSourceTimestamp: responseTimestamps.filter(Boolean).sort().at(-1) || null,
     records
   };
 }
@@ -443,6 +568,7 @@ export async function fetchSecEdgarFilings({
 }
 
 export const providerAdapterRegistry = {
+  "jpx-jquants-prices": fetchJpxJQuantsDailyPrices,
   "mops-filings-events": fetchMopsFilingsEvents,
   "twse-daily-prices": fetchTwseDailyPrices,
   "sec-edgar-filings": fetchSecEdgarFilings,

@@ -13,6 +13,7 @@
     "validate:ingestion-scheduler": "node scripts/validate-ingestion-scheduler.mjs",
     "validate:mops": "node scripts/validate-mops-adapter.mjs",
     "validate:sec-edgar": "node scripts/validate-sec-edgar-adapter.mjs",
+    "validate:jquants": "node scripts/validate-jquants-adapter.mjs",
     "ingest:scheduled": "node server/ingestion/runner.js --scheduled"
   },
   "dependencies": {
