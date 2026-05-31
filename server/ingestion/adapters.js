@@ -229,6 +229,47 @@ export async function fetchOfficialTechnologyAnnouncements({
   };
 }
 
+export async function fetchOfficialCompanyNews({
+  contract,
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const records = [];
+  for (const sourceKey of contract.sourceKeys || []) {
+    const source = officialSources[sourceKey];
+    if (!source?.url) continue;
+
+    const response = await fetchImpl(source.url);
+    if (!response?.ok) {
+      throw new Error(`${source.label} returned HTTP ${response?.status || "unknown"}`);
+    }
+
+    const html = await response.text();
+    const sourceTimestamp = responseDate(response) || now().toISOString();
+    records.push({
+      feedType: "news",
+      provider: contract.provider,
+      sourceId: sourceKey,
+      title: pageTitle(html) || source.label,
+      summary: pageSummary(html) || source.label,
+      sourceUrl: source.url,
+      sourceType: "official_ir",
+      confidence: "source",
+      publishedAt: publishedAt(html),
+      sourceTimestamp,
+      companyIds: companyIdsForSource(sourceKey),
+      industryIds: industryIdsForSource(sourceKey),
+      technologyIds: technologyIdsForSource(sourceKey)
+    });
+  }
+
+  return {
+    status: "licensed",
+    latestSourceTimestamp: records.map(record => record.sourceTimestamp).filter(Boolean).sort().at(-1) || null,
+    records
+  };
+}
+
 export async function fetchTwseDailyPrices({
   contract,
   fetchImpl = globalThis.fetch,
@@ -941,6 +982,7 @@ export async function fetchSecEdgarFilings({
 }
 
 export const providerAdapterRegistry = {
+  "official-company-news": fetchOfficialCompanyNews,
   "us-options": fetchUsOptionsChain,
   "us-equity-prices": fetchUsEquityDailyPrices,
   "jpx-jquants-prices": fetchJpxJQuantsDailyPrices,

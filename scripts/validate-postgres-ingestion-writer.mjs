@@ -109,10 +109,14 @@ const state = {
       table: "news_events",
       record: {
         title: "Official IR update",
+        source_id: "tsmc3dFabric",
         source_url: "https://example.com/news",
+        provider: "Official company news and IR sources",
         source_type: "official_ir",
         confidence: "source",
+        summary: "Official source-backed news summary.",
         published_at: "2026-05-26T11:30:00.000Z",
+        source_timestamp: "2026-05-26T11:35:00.000Z",
         linked_company_ids: ["tsmc"],
         linked_industry_ids: ["advanced-packaging"],
         linked_technology_ids: ["cowos"]
@@ -197,8 +201,11 @@ assert.equal(filingCall.params[6], "Filed annual disclosure.");
 
 const newsCall = findCall(pool, "news_events");
 assert.ok(newsCall, "writer should insert transformed news rows");
-assert.deepEqual(newsCall.params[5], ["tsmc"]);
-assert.deepEqual(newsCall.params[7], ["cowos"]);
+assert.equal(newsCall.params[1], "tsmc3dFabric");
+assert.equal(newsCall.params[3], "Official company news and IR sources");
+assert.equal(newsCall.params[6], "Official source-backed news summary.");
+assert.deepEqual(newsCall.params[9], ["tsmc"]);
+assert.deepEqual(newsCall.params[11], ["cowos"]);
 
 const optionsCall = findCall(pool, "option_chains");
 assert.ok(optionsCall, "writer should upsert transformed option chain rows");

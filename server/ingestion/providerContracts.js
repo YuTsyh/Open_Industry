@@ -70,6 +70,16 @@ export const ingestionProviderContracts = [
     licenseBoundary: "Use only a subscribed Cboe/OCC or licensed options endpoint; preserve option-chain capture timestamps and provider labels."
   },
   {
+    id: "official-company-news",
+    feedType: "news",
+    provider: "Official company news and IR sources",
+    markets: ["TW", "JP", "US"],
+    sourceKeys: ["nvidiaGb200", "broadcom800gNic", "coherent800g", "micronHbm3e", "appliedAiProducts", "vertivAiSolutions"],
+    outputTables: ["news_events", "feed_statuses", "ingestion_runs"],
+    requiredSecrets: [],
+    licenseBoundary: "Only ingest public official company pages or licensed news summaries; preserve source URLs, summaries, timestamps, and linked entity ids."
+  },
+  {
     id: "technology-official-announcements",
     feedType: "technology_announcements",
     provider: "Official company technology sources",

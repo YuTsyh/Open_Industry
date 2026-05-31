@@ -149,10 +149,14 @@ create table filings (
 create table news_events (
   id bigserial primary key,
   title text not null,
+  source_id text references official_sources(id),
   source_url text not null,
+  provider text not null default '',
   source_type text not null,
   confidence text not null default 'medium',
+  summary text not null default '',
   published_at timestamptz,
+  source_timestamp timestamptz,
   linked_company_ids text[] not null default '{}',
   linked_industry_ids text[] not null default '{}',
   linked_technology_ids text[] not null default '{}'

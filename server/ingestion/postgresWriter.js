@@ -171,21 +171,29 @@ async function insertNewsEvent(database, record) {
   await database.query(`
     insert into news_events (
       title,
+      source_id,
       source_url,
+      provider,
       source_type,
       confidence,
+      summary,
       published_at,
+      source_timestamp,
       linked_company_ids,
       linked_industry_ids,
       linked_technology_ids
     )
-    values ($1, $2, $3, $4, $5, $6, $7, $8)
+    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
   `, [
     record.title,
+    nullable(record.source_id),
     record.source_url,
+    record.provider || "",
     record.source_type,
     record.confidence || "medium",
+    record.summary || "",
     nullable(record.published_at),
+    nullable(record.source_timestamp),
     arrayValue(record.linked_company_ids),
     arrayValue(record.linked_industry_ids),
     arrayValue(record.linked_technology_ids)

@@ -96,7 +96,7 @@ export const apiRoutes = [
     queryParams: ["companyId", "industryId", "technologyId", "limit"],
     backingTables: ["news_events", "official_sources", "feed_statuses"],
     responseFields: ["items", "providerStatuses"],
-    dataPolicy: "News events must preserve source URL, source type, confidence, and linked company/industry/technology ids."
+    dataPolicy: "News events must preserve source URL, provider/source id, summary, source type, confidence, and linked company/industry/technology ids."
   },
   {
     id: "options",

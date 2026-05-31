@@ -17,6 +17,7 @@
     "validate:jpx-disclosures": "node scripts/validate-jpx-disclosures-adapter.mjs",
     "validate:us-equity": "node scripts/validate-us-equity-prices-adapter.mjs",
     "validate:us-options": "node scripts/validate-us-options-adapter.mjs",
+    "validate:official-news": "node scripts/validate-official-company-news-adapter.mjs",
     "ingest:scheduled": "node server/ingestion/runner.js --scheduled"
   },
   "dependencies": {

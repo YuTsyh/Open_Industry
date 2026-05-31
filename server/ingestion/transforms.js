@@ -93,10 +93,14 @@ function transformNewsRecord(raw) {
     table: "news_events",
     record: {
       title: compact(raw.title),
+      source_id: compact(valueFrom(raw, "sourceId", "source_id")),
       source_url: sourceUrl(raw),
+      provider: providerName(raw, "official news provider"),
       source_type: compact(valueFrom(raw, "sourceType", "source_type")) || "provider-ready",
       confidence: compact(raw.confidence) || "medium",
+      summary: compact(raw.summary),
       published_at: publishedAt(raw) || null,
+      source_timestamp: sourceTimestamp(raw) || null,
       linked_company_ids: linked.linkedCompanyIds,
       linked_industry_ids: linked.linkedIndustryIds,
       linked_technology_ids: linked.linkedTechnologyIds

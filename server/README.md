@@ -63,6 +63,7 @@ Current executable API scaffold:
 - The scheduled adapter registry includes `us-options`, which reads a subscribed Cboe U.S. options JSON endpoint for covered U.S. underlyings and stores option-chain rows with OCC symbols, open interest, volume, implied volatility, and capture timestamps
 - The scheduled adapter registry includes `mops-filings-events`, which reads TWSE/MOPS daily material-information OpenAPI rows, keeps only covered TW companies, and stores source-backed filing cards
 - The scheduled adapter registry includes `sec-edgar-filings`, which reads SEC's official ticker/CIK mapping and public submissions API, then stores covered U.S. company filings with accession URLs and source timestamps
+- The scheduled adapter registry includes `official-company-news`, which fetches source-backed official company news, product, and IR pages from `officialSources.js`, then writes linked `news_events` with summaries, providers, source ids, and timestamps
 - The scheduled adapter registry currently includes `technology-official-announcements`, which fetches public official source pages from `officialSources.js`, parses source-backed titles/summaries, and maps them to linked company, industry, and technology ids
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
 - Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`

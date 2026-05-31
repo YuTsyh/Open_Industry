@@ -75,10 +75,14 @@ const QUERIES = {
   news_events: `
     select
       title,
+      source_id,
       source_url,
+      provider,
       source_type,
       confidence,
+      summary,
       published_at,
+      source_timestamp,
       linked_company_ids,
       linked_industry_ids,
       linked_technology_ids
