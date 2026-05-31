@@ -11,6 +11,14 @@ const stateFile = join(tempDir, "ingestion-state.local.json");
 const secretValue = ["do", "not", "log", "this", "secret"].join("-");
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const serverReadme = await readFile(new URL("../server/README.md", import.meta.url), "utf8");
+const MOPS_FIELD_SPEAK_DATE = "\u767c\u8a00\u65e5\u671f";
+const MOPS_FIELD_SPEAK_TIME = "\u767c\u8a00\u6642\u9593";
+const MOPS_FIELD_COMPANY_CODE = "\u516c\u53f8\u4ee3\u865f";
+const MOPS_FIELD_COMPANY_NAME = "\u516c\u53f8\u540d\u7a31";
+const MOPS_FIELD_SUBJECT = "\u4e3b\u65e8 ";
+const MOPS_FIELD_CLAUSE = "\u7b26\u5408\u689d\u6b3e";
+const MOPS_FIELD_EVENT_DATE = "\u4e8b\u5be6\u767c\u751f\u65e5";
+const MOPS_FIELD_DESCRIPTION = "\u8aaa\u660e";
 
 const calledAdapters = [];
 const adapters = {
@@ -301,6 +309,44 @@ try {
     row.record.ticker === "2330.TW" &&
     row.record.close === 2540
   ), "scheduled runner should use the registered TWSE adapter by default");
+
+  const mopsAdapter = providerAdapterRegistry["mops-filings-events"];
+  assert.equal(typeof mopsAdapter, "function", "MOPS filings/events should have a scheduled adapter");
+  const mopsFetchedUrls = [];
+  const mopsRun = await runScheduledIngestion({
+    stateFile,
+    providerIds: ["mops-filings-events"],
+    fetchImpl: async url => {
+      mopsFetchedUrls.push(url);
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "Sun, 31 May 2026 02:10:00 GMT" },
+        async json() {
+          return [{
+            [MOPS_FIELD_SPEAK_DATE]: "1150530",
+            [MOPS_FIELD_SPEAK_TIME]: "40445",
+            [MOPS_FIELD_COMPANY_CODE]: "2330",
+            [MOPS_FIELD_COMPANY_NAME]: "TSMC",
+            [MOPS_FIELD_SUBJECT]: "Board approved advanced packaging capacity plan",
+            [MOPS_FIELD_CLAUSE]: "Article 4",
+            [MOPS_FIELD_EVENT_DATE]: "1150529",
+            [MOPS_FIELD_DESCRIPTION]: "Capacity plan approved."
+          }];
+        }
+      };
+    },
+    now: () => new Date("2026-05-31T03:00:00.000Z")
+  });
+  assert.deepEqual(mopsFetchedUrls, ["https://openapi.twse.com.tw/v1/opendata/t187ap04_L"]);
+  assert.equal(mopsRun.runs[0].status, "succeeded");
+  assert.equal(mopsRun.feedStatuses[0].status, "licensed");
+  assert.ok(mopsRun.transformedRows.some(row =>
+    row.providerId === "mops-filings-events" &&
+    row.table === "filings" &&
+    row.record.company_id === "tsmc" &&
+    row.record.title.includes("advanced packaging")
+  ), "scheduled runner should use the registered MOPS adapter by default");
 } finally {
   await rm(tempDir, { recursive: true, force: true });
 }

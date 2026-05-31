@@ -6,9 +6,20 @@ import {
 } from "../../src/data.js";
 
 const TWSE_STOCK_DAY_ALL_URL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
+const MOPS_DAILY_MATERIAL_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap04_L";
 const SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_SUBMISSIONS_BASE_URL = "https://data.sec.gov/submissions";
 const DEFAULT_SEC_FORMS = ["10-K", "10-Q", "8-K", "20-F", "40-F", "6-K"];
+const MOPS_FIELDS = {
+  speakDate: "\u767c\u8a00\u65e5\u671f",
+  speakTime: "\u767c\u8a00\u6642\u9593",
+  companyCode: "\u516c\u53f8\u4ee3\u865f",
+  companyName: "\u516c\u53f8\u540d\u7a31",
+  subject: "\u4e3b\u65e8",
+  clause: "\u7b26\u5408\u689d\u6b3e",
+  eventDate: "\u4e8b\u5be6\u767c\u751f\u65e5",
+  description: "\u8aaa\u660e"
+};
 
 function compact(value) {
   return String(value ?? "").trim();
@@ -84,12 +95,16 @@ function twseTicker(code) {
   return normalized ? `${normalized}.TW` : "";
 }
 
-function coveredTwTickers() {
-  return new Set(
-    Object.values(companies)
-      .filter(company => company.market === "TW")
-      .map(company => company.ticker)
+function coveredTwCompanyByTicker() {
+  return new Map(
+    Object.entries(companies)
+      .filter(([, company]) => company.market === "TW")
+      .map(([companyId, company]) => [company.ticker, { companyId, company }])
   );
+}
+
+function coveredTwTickers() {
+  return new Set(coveredTwCompanyByTicker().keys());
 }
 
 function coveredUsCompanies() {
@@ -202,6 +217,92 @@ export async function fetchTwseDailyPrices({
 
   return {
     status: "delayed",
+    latestSourceTimestamp: sourceTimestamp,
+    records
+  };
+}
+
+function mopsValue(row = {}, fieldName) {
+  const match = Object.keys(row).find(key => compact(key) === fieldName);
+  return compact(match ? row[match] : "");
+}
+
+function rocDate(value) {
+  const normalized = compact(value).replace(/\D/g, "");
+  if (normalized.length !== 7) return "";
+  const year = Number(normalized.slice(0, 3)) + 1911;
+  const month = normalized.slice(3, 5);
+  const day = normalized.slice(5, 7);
+  return `${year}-${month}-${day}`;
+}
+
+function rocTimestamp(dateValue, timeValue) {
+  const date = rocDate(dateValue);
+  if (!date) return null;
+  const time = compact(timeValue).replace(/\D/g, "").padStart(6, "0").slice(-6);
+  return `${date}T${time.slice(0, 2)}:${time.slice(2, 4)}:${time.slice(4, 6)}.000Z`;
+}
+
+function mopsMaxEvents(env = {}) {
+  const parsed = Number(env.MOPS_MAX_EVENTS);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function singleLine(value) {
+  return compact(value).replace(/\s+/g, " ");
+}
+
+function mopsSummary(row) {
+  return [
+    mopsValue(row, MOPS_FIELDS.clause),
+    rocDate(mopsValue(row, MOPS_FIELDS.eventDate)) ? `Event date ${rocDate(mopsValue(row, MOPS_FIELDS.eventDate))}` : "",
+    singleLine(mopsValue(row, MOPS_FIELDS.description))
+  ].filter(Boolean).join(". ");
+}
+
+export async function fetchMopsFilingsEvents({
+  contract,
+  env = {},
+  fetchImpl = globalThis.fetch
+} = {}) {
+  const response = await fetchImpl(MOPS_DAILY_MATERIAL_URL);
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"}`);
+  }
+
+  const rows = await response.json();
+  if (!Array.isArray(rows)) throw new Error(`${contract.provider} returned an unexpected payload`);
+
+  const covered = coveredTwCompanyByTicker();
+  const sourceTimestamp = responseDate(response);
+  const records = [];
+
+  for (const row of rows) {
+    const ticker = twseTicker(mopsValue(row, MOPS_FIELDS.companyCode));
+    const coveredCompany = covered.get(ticker);
+    if (!coveredCompany) continue;
+
+    const subject = mopsValue(row, MOPS_FIELDS.subject);
+    records.push({
+      feedType: "filings",
+      provider: contract.provider,
+      sourceId: "mops",
+      ticker,
+      companyId: coveredCompany.companyId,
+      filingType: "material_information",
+      title: `${mopsValue(row, MOPS_FIELDS.companyName) || coveredCompany.company.name} ${subject || "material information"}`,
+      publishedAt: rocTimestamp(mopsValue(row, MOPS_FIELDS.speakDate), mopsValue(row, MOPS_FIELDS.speakTime)),
+      sourceTimestamp,
+      sourceUrl: MOPS_DAILY_MATERIAL_URL,
+      summary: mopsSummary(row)
+    });
+
+    if (records.length >= mopsMaxEvents(env)) break;
+  }
+
+  return {
+    status: "licensed",
     latestSourceTimestamp: sourceTimestamp,
     records
   };
@@ -342,6 +443,7 @@ export async function fetchSecEdgarFilings({
 }
 
 export const providerAdapterRegistry = {
+  "mops-filings-events": fetchMopsFilingsEvents,
   "twse-daily-prices": fetchTwseDailyPrices,
   "sec-edgar-filings": fetchSecEdgarFilings,
   "technology-official-announcements": fetchOfficialTechnologyAnnouncements

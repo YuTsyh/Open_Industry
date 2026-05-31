@@ -54,6 +54,7 @@ Current executable API scaffold:
 - `npm run ingest:scheduled` executes the scheduled ingestion entrypoint; scope production runs with `INDUSTRYTOPO_ENABLED_PROVIDERS=twse-daily-prices,mops-filings-events,...` and configure only licensed provider secrets in the environment
 - When `INDUSTRYTOPO_DATA_SOURCE=postgres`, `npm run ingest:scheduled` also writes the current scheduled run to PostgreSQL (`feed_statuses`, `ingestion_runs`, and supported transformed record tables) while still updating the local status snapshot
 - The scheduled adapter registry includes `twse-daily-prices`, which reads the official TWSE `STOCK_DAY_ALL` OpenAPI endpoint, keeps only covered TW tickers, and labels rows as delayed with source timestamps
+- The scheduled adapter registry includes `mops-filings-events`, which reads TWSE/MOPS daily material-information OpenAPI rows, keeps only covered TW companies, and stores source-backed filing cards
 - The scheduled adapter registry includes `sec-edgar-filings`, which reads SEC's official ticker/CIK mapping and public submissions API, then stores covered U.S. company filings with accession URLs and source timestamps
 - The scheduled adapter registry currently includes `technology-official-announcements`, which fetches public official source pages from `officialSources.js`, parses source-backed titles/summaries, and maps them to linked company, industry, and technology ids
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
