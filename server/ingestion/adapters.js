@@ -475,6 +475,131 @@ export async function fetchUsEquityDailyPrices({
   };
 }
 
+function usOptionsMaxContractsPerCompany(env = {}) {
+  const parsed = Number(env.US_OPTIONS_MAX_CONTRACTS_PER_COMPANY);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 20;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function usOptionsUnderlyingParam(env = {}) {
+  return compact(env.US_OPTIONS_UNDERLYING_PARAM) || "underlyingTicker";
+}
+
+function coveredUsOptionsCompanies() {
+  return coveredUsCompanies().filter(company => {
+    const sourceRecord = companies[company.companyId];
+    return hasSourceKey(sourceRecord, "cboeOptions") || hasSourceKey(sourceRecord, "occMarketData");
+  });
+}
+
+function optionRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of ["chain", "options", "rows", "items", "results", "data"]) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return tableRows(payload);
+}
+
+function optionNumber(value) {
+  const normalized = compact(value).replaceAll(",", "");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function optionTypeText(value) {
+  const normalized = compact(value).toLowerCase();
+  if (normalized === "c" || normalized === "call") return "call";
+  if (normalized === "p" || normalized === "put") return "put";
+  return normalized;
+}
+
+async function fetchUsOptionsJson({ fetchImpl = globalThis.fetch, contract, env, ticker, limit }) {
+  const url = withQuery(compact(env.US_OPTIONS_DATA_BASE_URL), {
+    [usOptionsUnderlyingParam(env)]: ticker,
+    limit
+  });
+  const response = await fetchImpl(url, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${compact(env.US_OPTIONS_DATA_API_KEY)}`
+    }
+  });
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"} for underlying ${ticker}`);
+  }
+
+  return {
+    payload: await response.json(),
+    sourceTimestamp: responseDate(response)
+  };
+}
+
+export async function fetchUsOptionsChain({
+  contract,
+  env = {},
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const baseUrl = compact(env.US_OPTIONS_DATA_BASE_URL);
+  const apiKey = compact(env.US_OPTIONS_DATA_API_KEY);
+  if (!baseUrl) throw new Error("US_OPTIONS_DATA_BASE_URL is required for licensed U.S. options ingestion");
+  if (!apiKey) throw new Error("US_OPTIONS_DATA_API_KEY is required for licensed U.S. options ingestion");
+
+  const maxContracts = usOptionsMaxContractsPerCompany(env);
+  const records = [];
+  const capturedTimestamps = [];
+  const responseTimestamps = [];
+
+  for (const company of coveredUsOptionsCompanies()) {
+    const { payload, sourceTimestamp } = await fetchUsOptionsJson({
+      fetchImpl,
+      contract,
+      env,
+      ticker: company.ticker,
+      limit: maxContracts
+    });
+    const responseTimestamp = sourceTimestamp || now().toISOString();
+    responseTimestamps.push(responseTimestamp);
+
+    for (const row of optionRows(payload).slice(0, maxContracts)) {
+      const underlyingTicker = compact(recordValue(row, "underlyingTicker", "underlying_ticker", "underlying", "ticker"))
+        .toUpperCase() || company.ticker;
+      const occSymbol = compact(recordValue(row, "occSymbol", "occ_symbol", "optionSymbol", "option_symbol", "contractSymbol", "contract_symbol", "symbol"));
+      const optionType = optionTypeText(recordValue(row, "optionType", "option_type", "putCall", "put_call", "callPut", "call_put", "type"));
+      if (!occSymbol || !["call", "put"].includes(optionType)) continue;
+
+      const capturedAt = compact(recordValue(row, "capturedAt", "captured_at", "asOf", "as_of", "timestamp")) ||
+        responseTimestamp;
+      capturedTimestamps.push(capturedAt);
+      records.push({
+        feedType: "options",
+        provider: contract.provider,
+        market: "US",
+        companyId: company.companyId,
+        underlyingTicker,
+        occSymbol,
+        expiration: compact(recordValue(row, "expiration", "expirationDate", "expiration_date", "expiry")),
+        strike: optionNumber(recordValue(row, "strike", "strikePrice", "strike_price")),
+        optionType,
+        openInterest: optionNumber(recordValue(row, "openInterest", "open_interest")),
+        volume: optionNumber(recordValue(row, "volume")),
+        impliedVolatility: optionNumber(recordValue(row, "impliedVolatility", "implied_volatility", "iv")),
+        capturedAt,
+        sourceTimestamp: responseTimestamp
+      });
+    }
+  }
+
+  return {
+    status: "licensed",
+    latestSourceTimestamp: capturedTimestamps.filter(Boolean).sort().at(-1) ||
+      responseTimestamps.filter(Boolean).sort().at(-1) ||
+      null,
+    records
+  };
+}
+
 function tdnetMaxDisclosuresPerCompany(env = {}) {
   const parsed = Number(env.TDNET_MAX_DISCLOSURES_PER_COMPANY);
   if (!Number.isFinite(parsed) || parsed <= 0) return 5;
@@ -816,6 +941,7 @@ export async function fetchSecEdgarFilings({
 }
 
 export const providerAdapterRegistry = {
+  "us-options": fetchUsOptionsChain,
   "us-equity-prices": fetchUsEquityDailyPrices,
   "jpx-jquants-prices": fetchJpxJQuantsDailyPrices,
   "jpx-disclosures": fetchJpxTdnetDisclosures,

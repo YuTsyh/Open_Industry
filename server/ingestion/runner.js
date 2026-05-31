@@ -116,12 +116,12 @@ function selectedContracts(providerIds = []) {
 }
 
 function recordTimestamp(record = {}) {
-  return record.sourceTimestamp ||
+  return record.capturedAt ||
+    record.captured_at ||
+    record.sourceTimestamp ||
     record.source_timestamp ||
     record.publishedAt ||
     record.published_at ||
-    record.capturedAt ||
-    record.captured_at ||
     record.tradeDate ||
     record.trade_date ||
     "";

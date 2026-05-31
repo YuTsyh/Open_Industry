@@ -27,6 +27,7 @@ for (const key of [
   "TDNET_API_KEY",
   "US_EQUITY_DATA_BASE_URL",
   "US_EQUITY_DATA_API_KEY",
+  "US_OPTIONS_DATA_BASE_URL",
   "US_OPTIONS_DATA_API_KEY"
 ]) {
   assert.match(envExample, new RegExp(`^${key}=$`, "m"), `.env.example should list ${key} without a committed value`);
@@ -54,6 +55,7 @@ assert.equal(missingProviderSecret.ok, false, "enabled licensed providers should
 assert.ok(missingProviderSecret.checks.some(item =>
   item.id === "provider-secret:us-options" &&
   item.level === "error" &&
+  item.missingSecrets.includes("US_OPTIONS_DATA_BASE_URL") &&
   item.missingSecrets.includes("US_OPTIONS_DATA_API_KEY") &&
   !JSON.stringify(item).includes(fixtureDatabasePassword)
 ));
@@ -65,6 +67,7 @@ const productionReady = deploymentChecks({
   INDUSTRYTOPO_JWT_SECRET: "x".repeat(32),
   INDUSTRYTOPO_ENABLED_PROVIDERS: "twse-daily-prices,mops-filings-events,sec-edgar-filings,us-options",
   SEC_EDGAR_USER_AGENT: "IndustryTopo ops@example.com",
+  US_OPTIONS_DATA_BASE_URL: "https://licensed.example.test/us-options",
   US_OPTIONS_DATA_API_KEY: "configured"
 });
 assert.equal(productionReady.ok, true, "production env should pass with PostgreSQL, JWT and enabled provider secrets configured");

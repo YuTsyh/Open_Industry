@@ -62,12 +62,12 @@ export const ingestionProviderContracts = [
   {
     id: "us-options",
     feedType: "options",
-    provider: "OCC/Cboe or licensed options vendor",
+    provider: "Cboe U.S. options market data",
     markets: ["US"],
     sourceKeys: ["occMarketData", "cboeOptions"],
     outputTables: ["option_chains", "feed_statuses", "ingestion_runs"],
-    requiredSecrets: ["US_OPTIONS_DATA_API_KEY"],
-    licenseBoundary: "Options chain, open interest, greeks, and trade data require explicit vendor/license checks."
+    requiredSecrets: ["US_OPTIONS_DATA_BASE_URL", "US_OPTIONS_DATA_API_KEY"],
+    licenseBoundary: "Use only a subscribed Cboe/OCC or licensed options endpoint; preserve option-chain capture timestamps and provider labels."
   },
   {
     id: "technology-official-announcements",
