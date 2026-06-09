@@ -19,11 +19,11 @@ export function topIndustryExposures(company, limit = 4) {
 }
 
 export function formatPriceSnapshot(snapshot = {}) {
-  if (!snapshot || snapshot.status === "source-ready" || snapshot.last == null) {
+  if (!snapshot || snapshot.status === "source-ready" || snapshot.status === "provider-ready" || snapshot.last == null) {
     return {
-      value: "待接入",
-      change: "provider ready",
-      status: snapshot.status || "source-ready"
+      value: "provider-ready",
+      change: "licensed feed required",
+      status: snapshot.status || "provider-ready"
     };
   }
 

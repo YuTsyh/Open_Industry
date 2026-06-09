@@ -160,7 +160,7 @@ function persistedPriceRowsForCompany(ingestionState, companyId) {
 function priceSnapshotFromRows(rows = [], companyId) {
   if (!rows.length) return null;
 
-  const fallback = companies[companyId]?.liveFeeds?.priceSnapshot || {};
+  const priceFeed = companies[companyId]?.liveFeeds?.price || {};
   const latest = rows[rows.length - 1].record;
   const previous = rows.length > 1 ? rows[rows.length - 2].record : null;
   const last = numericPrice(latest.close);
@@ -176,11 +176,26 @@ function priceSnapshotFromRows(rows = [], companyId) {
     last,
     change,
     changePercent,
-    currency: fallback.currency || "",
+    currency: latest.currency || "",
     asOf: sourceTime,
     provider: latest.provider || "price provider slot",
     sourceTimestamp: sourceTime,
-    sourceKeys: companies[companyId]?.liveFeeds?.price?.sourceKeys || fallback.sourceKeys || []
+    sourceKeys: priceFeed.sourceKeys || []
+  };
+}
+
+function providerReadyPriceSnapshot(companyId) {
+  const priceFeed = companies[companyId]?.liveFeeds?.price || {};
+  return {
+    status: "provider-ready",
+    last: null,
+    change: null,
+    changePercent: null,
+    currency: "",
+    asOf: null,
+    provider: "licensed price provider slot",
+    sourceTimestamp: null,
+    sourceKeys: priceFeed.sourceKeys || []
   };
 }
 
@@ -306,7 +321,7 @@ function companyFeedStatuses(companyId, ingestionState = null, priceSnapshot = n
   if (!company) return [];
 
   const feeds = company.liveFeeds || {};
-  const snapshot = priceSnapshot || feeds.priceSnapshot || {};
+  const snapshot = priceSnapshot || providerReadyPriceSnapshot(companyId);
   const fallbackStatuses = [
     providerStatus({
       feedType: "price",
@@ -870,7 +885,7 @@ async function handleRequest(request, response, options) {
     if (!company) return routeError(response, 404, "company not found");
     const ingestionState = await options.loadDataState();
     const priceRows = persistedPriceRowsForCompany(ingestionState, companyId);
-    const snapshot = priceSnapshotFromRows(priceRows, companyId) || company.liveFeeds?.priceSnapshot || {};
+    const snapshot = priceSnapshotFromRows(priceRows, companyId) || providerReadyPriceSnapshot(companyId);
     const status = statusFromFeed(company.liveFeeds?.price, snapshot);
     return sendJson(response, 200, {
       companyId,
@@ -904,7 +919,7 @@ async function handleRequest(request, response, options) {
     const company = publicCompany(companyId);
     if (!company) return routeError(response, 404, "company not found");
     const ingestionState = await options.loadDataState();
-    const priceSnapshot = persistedPriceSnapshotForCompany(ingestionState, companyId) || companies[companyId].liveFeeds?.priceSnapshot || null;
+    const priceSnapshot = persistedPriceSnapshotForCompany(ingestionState, companyId) || providerReadyPriceSnapshot(companyId);
     const feedStatuses = companyFeedStatuses(companyId, ingestionState, priceSnapshot);
     return sendJson(response, 200, {
       company,

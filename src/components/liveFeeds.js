@@ -31,7 +31,7 @@ function formatFeedType(type = "feed") {
 function priceSnapshotCard(snapshot = {}) {
   const formatted = formatPriceSnapshot(snapshot);
   return `
-    <article class="live-feed-card price-snapshot-card ${snapshot.status === "source-ready" ? "is-muted" : ""}">
+    <article class="live-feed-card price-snapshot-card ${["source-ready", "provider-ready"].includes(snapshot.status) ? "is-muted" : ""}">
       <div class="live-feed-title">
         <strong>價格快照</strong>
         <span class="tag">${escapeHtml(formatted.status)}</span>
@@ -40,7 +40,7 @@ function priceSnapshotCard(snapshot = {}) {
         <span>${escapeHtml(formatted.value)}</span>
         <small>${escapeHtml(formatted.change)}</small>
       </div>
-      <p class="small">${escapeHtml(snapshot.asOf || "尚未設定抓取時間")} · ${escapeHtml(snapshot.provider || "provider slot")}</p>
+      <p class="small">${escapeHtml(snapshot.asOf || "No licensed price loaded")} · ${escapeHtml(snapshot.provider || "provider slot")}</p>
       <div class="source-row">${sourceLinks(snapshot.sourceKeys)}</div>
     </article>
   `;
@@ -106,7 +106,11 @@ export function liveDataReadinessPanel() {
 export function companyLiveFeedPanel(company, apiLive = null, apiPrice = null) {
   const feeds = Object.entries(company.liveFeeds || {}).filter(([type]) => type !== "priceSnapshot");
   if (!feeds.length && !company.liveFeeds?.priceSnapshot) return "";
-  const priceSnapshot = apiPrice?.snapshot || company.liveFeeds?.priceSnapshot;
+  const priceSnapshot = apiPrice?.snapshot || {
+    status: "provider-ready",
+    provider: "licensed price provider slot",
+    sourceKeys: company.liveFeeds?.price?.sourceKeys || []
+  };
 
   return `
     <section class="panel live-feed-panel">

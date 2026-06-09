@@ -652,8 +652,8 @@ assert.ok(
 const heatmapRows = buildLiveHeatmapRows({ universeId: "cap", rangeId: "latest" });
 assert.ok(heatmapRows.length >= 6, "overview heatmap should cover the configured industries");
 assert.ok(
-  heatmapRows.some(row => row.coverage.priced > 0),
-  "overview heatmap should use available company price snapshots"
+  heatmapRows.every(row => row.coverage.priced === 0 && row.sourceLabel === "provider-ready"),
+  "static overview heatmap should remain provider-ready until licensed API prices are loaded"
 );
 for (const row of heatmapRows) {
   assert.ok(row.coverage.total > 0, `${row.id} heatmap row should have company coverage`);
@@ -760,6 +760,10 @@ assert.ok(
 assert.ok(
   companyHtml.includes("price-snapshot-card"),
   "company detail should render direct price snapshot information"
+);
+assert.ok(
+  !companyHtml.includes("Yahoo") && !companyHtml.includes("TWD 2,310"),
+  "static company detail should not render unlicensed/public quote snapshots"
 );
 assert.ok(
   companyHtml.includes("industry-exposure-grid"),

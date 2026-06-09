@@ -112,7 +112,7 @@ function ingestionMonitoringPanel(ingestionStatus) {
 export function researchHealthPanel(ingestionStatus) {
   const companyRecords = Object.values(companies);
   const techIds = [...new Set(Object.values(technologyMenus).flat())];
-  const pricedCompanies = companyRecords.filter(company => company.liveFeeds?.priceSnapshot?.status === "available").length;
+  const priceFeedSlots = companyRecords.filter(company => company.liveFeeds?.price).length;
   const exposureCoverage = companyRecords.filter(company => Object.keys(company.industryExposures || {}).length >= 2).length;
   const authoredStepDetails = techIds.filter(id => {
     const tech = technologyCatalog[id];
@@ -122,7 +122,7 @@ export function researchHealthPanel(ingestionStatus) {
 
   const healthItems = [
     ["Company profiles", `${companyRecords.length}`, "roles, exposure, SWOT, live-feed slots"],
-    ["Price snapshots", `${pricedCompanies}/${companyRecords.length}`, "delayed/public snapshot coverage"],
+    ["Price feed slots", `${priceFeedSlots}/${companyRecords.length}`, "licensed provider slots"],
     ["Industry exposure", `${exposureCoverage}/${companyRecords.length}`, "multi-industry score coverage"],
     ["Supply-chain lanes", `${laneCoverage}/${Object.keys(industries).length}`, "upstream / midstream / downstream maps"],
     ["Technology maps", `${techIds.length}`, "process, bottleneck and company-role coverage"],

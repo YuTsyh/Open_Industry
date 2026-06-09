@@ -391,6 +391,29 @@ try {
     assert.ok(Array.isArray(body.latestTechnologyAnnouncements), "company live fallback announcements should remain available without persisted technology rows");
   }
 
+  await writeFile(ingestionStateFile, `${JSON.stringify({
+    feedStatuses: [],
+    transformedRows: [],
+    ingestionRuns: []
+  }, null, 2)}\n`, "utf8");
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/company/tsmc");
+    assert.equal(response.status, 200, "company live response should tolerate an empty ingestion state");
+    assert.equal(body.priceSnapshot.status, "provider-ready", "company live response should stay provider-ready without persisted price rows");
+    assert.equal(body.priceSnapshot.provider, "licensed price provider slot", "company live response should not fall back to public quote providers");
+    assert.ok(!JSON.stringify(body.priceSnapshot).includes("Yahoo"), "company live response should not expose public quote snapshots");
+  }
+
+  {
+    const { response, body } = await request(baseUrl, "/api/live/company/tsmc/price");
+    assert.equal(response.status, 200, "company price response should tolerate an empty ingestion state");
+    assert.equal(body.status, "provider-ready", "company price response should remain provider-ready without persisted prices");
+    assert.equal(body.snapshot.provider, "licensed price provider slot", "company price response should not use public quote providers");
+    assert.deepEqual(body.history, [], "company price response should not synthesize history without persisted prices");
+    assert.ok(!JSON.stringify(body).includes("Yahoo"), "company price response should not expose public quote snapshots");
+  }
+
   {
     const { response } = await request(baseUrl, "/api/notes?entityType=company&entityId=tsmc");
     assert.equal(response.status, 401, "notes list should require JWT auth");

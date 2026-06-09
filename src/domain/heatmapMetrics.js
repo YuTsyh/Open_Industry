@@ -49,7 +49,7 @@ export function buildLiveHeatmapRows({ universeId = "cap", rangeId = "latest", c
     const ranked = rankedCompaniesForIndustry(industryId, universeId);
     const priced = ranked
       .map(item => {
-        const snapshot = companySnapshots[item.id] || item.company.liveFeeds?.priceSnapshot || {};
+        const snapshot = companySnapshots[item.id] || {};
         return {
           ...item,
           returnPct: snapshotReturn(snapshot, rangeId),

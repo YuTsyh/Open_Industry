@@ -47,7 +47,7 @@ function exposureGrid(company) {
 
 function priceSummary(company, apiPrice = {}) {
   apiPrice = apiPrice || {};
-  const snapshot = apiPrice.snapshot || company.liveFeeds?.priceSnapshot || {};
+  const snapshot = apiPrice.snapshot || { status: "provider-ready" };
   const formatted = formatPriceSnapshot(snapshot);
   const provider = apiPrice.provider || snapshot.provider || "provider-ready";
   return `
@@ -58,7 +58,7 @@ function priceSummary(company, apiPrice = {}) {
       <div class="price-trend-mini">
         ${priceSparkline(apiPrice)}
       </div>
-      <span class="small">${escapeHtml(snapshot.asOf || apiPrice.sourceTimestamp || "source-ready")}</span>
+      <span class="small">${escapeHtml(snapshot.asOf || apiPrice.sourceTimestamp || "No licensed price loaded")}</span>
       <span class="tag">${escapeHtml(provider)}</span>
     </div>
   `;
