@@ -347,6 +347,7 @@ function renderNewsTab(company, state = {}) {
   const snapshot = company.liveFeeds?.priceSnapshot || {};
   const companyId = state.companyId || "tsmc";
   const apiLive = state.api?.companyLive?.[companyId] || {};
+  const companySignals = state.api?.companySignals?.[companyId] || {};
   const meetingPayload = state.api?.companyMeetings?.[companyId] || {};
   const optionsPayload = state.api?.companyOptions?.[companyId] || {
     chain: apiLive.latestOptions || [],
@@ -354,8 +355,8 @@ function renderNewsTab(company, state = {}) {
   };
   const meetings = meetingPayload.items || apiLive.latestMeetings || [];
   const events = [
-    ...(apiLive.latestNews || []).map(item => ({ ...item, type: "news" })),
-    ...(apiLive.latestFilings || []).map(item => ({ ...item, type: "filing" }))
+    ...[...(apiLive.latestNews || []), ...(companySignals.news || [])].map(item => ({ ...item, type: "news" })),
+    ...[...(apiLive.latestFilings || []), ...(companySignals.filings || [])].map(item => ({ ...item, type: "filing" }))
   ];
   if (events.length || meetings.length || optionsPayload.chain?.length || optionsPayload.providerStatuses?.length) {
     return `

@@ -462,6 +462,35 @@ assert.ok(
   newsSearchMatches.some(item => item.kind === "news" && item.companyId === "tsmc" && item.companyTab === "news"),
   "global search should suggest loaded company news and route to the company news tab"
 );
+const filingSearchMatches = matchingSearchItems({
+  ...requiredState,
+  api: {
+    enabled: true,
+    industryEvents: {
+      "advanced-packaging": {
+        news: [],
+        filings: [
+          {
+            title: "Supplier capacity filing",
+            publishedAt: "2026-05-22",
+            sourceUrl: "https://example.com/industry-filing",
+            summary: "Filing card summary."
+          }
+        ]
+      }
+    }
+  }
+}, "supplier capacity");
+assert.ok(
+  filingSearchMatches.some(item => item.kind === "filing" && item.industryId === "advanced-packaging" && item.industryTab === "news"),
+  "global search should suggest loaded industry filings and route to the industry news tab"
+);
+assert.ok(
+  appJs.includes("function refreshSearchSignals()") &&
+    appJs.includes("refreshSearchSignals();") &&
+    appJs.includes("refreshSearchSuggestions();"),
+  "app shell should proactively load API-backed search signals and refresh open suggestions"
+);
 assert.ok(
   searchSuggestionButton(apiSearchMatches[0]).includes('data-search-kind="technology-announcement"'),
   "search suggestion buttons should expose stable search item kind metadata"
@@ -1134,6 +1163,30 @@ assert.ok(apiCompanyNewsHtml.includes("Cboe/OCC licensed options slot"), "option
 assert.ok(apiCompanyNewsHtml.includes("not-available"), "options panel should show explicit availability status");
 assert.ok(apiCompanyNewsHtml.includes("Listed options coverage is not available"), "options panel should explain options availability reason");
 assert.ok(apiCompanyNewsHtml.includes("open interest, volume, and greeks"), "options panel should show licensed options boundary");
+
+const apiCompanySignalNewsHtml = renderRoute({
+  ...requiredState,
+  route: "company",
+  companyTab: "news",
+  api: {
+    enabled: true,
+    companySignals: {
+      tsmc: {
+        news: [
+          { title: "Search-loaded CoWoS news", summary: "Search-loaded company event.", sourceUrl: "https://example.com/search-news", publishedAt: "2026-05-23" }
+        ],
+        filings: [
+          { title: "Search-loaded filing", extractedSummary: "Search-loaded filing event.", sourceUrl: "https://example.com/search-filing", publishedAt: "2026-05-22" }
+        ]
+      }
+    }
+  }
+});
+assert.ok(
+  apiCompanySignalNewsHtml.includes("Search-loaded CoWoS news") &&
+    apiCompanySignalNewsHtml.includes("Search-loaded filing"),
+  "company news tab should render companySignals loaded by global search"
+);
 assert.ok(
   appJs.includes("fetchOptions") &&
     appJs.includes("companyOptions") &&

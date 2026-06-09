@@ -263,6 +263,7 @@ async function refreshCompanySignals(companyId) {
   }
   delete state.api.pending[key];
   if (state.route === "industry" && state.industryTab === "landscape") render();
+  refreshSearchSuggestions();
 }
 
 async function refreshHeatmap() {
@@ -346,7 +347,8 @@ async function refreshIndustryEvents(industryId) {
     };
   }
   delete state.api.pending[key];
-  render();
+  if (state.route === "industry" && state.industryTab === "news") render();
+  refreshSearchSuggestions();
 }
 
 async function refreshTechnologyAnnouncements(technologyId) {
@@ -366,7 +368,8 @@ async function refreshTechnologyAnnouncements(technologyId) {
     };
   }
   delete state.api.pending[key];
-  render();
+  if (state.route === "technology") render();
+  refreshSearchSuggestions();
 }
 
 async function refreshActiveNotes() {
@@ -604,12 +607,26 @@ function closeSearchSuggestions() {
   syncSearchCombobox();
 }
 
+function refreshSearchSignals() {
+  if (!state.api.enabled || !state.api.baseUrl) return;
+  refreshCompanySignals(state.companyId || "tsmc");
+  refreshIndustryEvents(state.industryId || defaultIndustry);
+  refreshTechnologyAnnouncements(state.techId || "cowos");
+}
+
+function refreshSearchSuggestions() {
+  if (!searchSuggestions.classList.contains("open")) return;
+  if (!searchInput.value.trim()) return;
+  renderSuggestions(searchInput.value, activeSearchIndex >= 0 ? activeSearchIndex : 0);
+}
+
 function renderSuggestions(value, requestedActiveIndex = 0) {
   const query = value.trim().toLowerCase();
   if (!query) {
     closeSearchSuggestions();
     return;
   }
+  refreshSearchSignals();
   searchMatches = matchingSearchItems(state, query);
   activeSearchIndex = searchMatches.length
     ? Math.max(0, Math.min(requestedActiveIndex, searchMatches.length - 1))
