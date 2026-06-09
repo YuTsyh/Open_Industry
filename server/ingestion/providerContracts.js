@@ -80,6 +80,16 @@ export const ingestionProviderContracts = [
     licenseBoundary: "Only ingest public official company pages or licensed news summaries; preserve source URLs, summaries, timestamps, and linked entity ids."
   },
   {
+    id: "licensed-transcripts",
+    feedType: "meetings",
+    provider: "Licensed transcript provider",
+    markets: ["TW", "JP", "US"],
+    sourceKeys: [],
+    outputTables: ["meetings", "feed_statuses", "ingestion_runs"],
+    requiredSecrets: ["MEETING_TRANSCRIPTS_API_BASE_URL", "MEETING_TRANSCRIPTS_API_KEY"],
+    licenseBoundary: "Use only a licensed earnings-call, investor-day, or technology-conference transcript API; preserve transcript links, summaries, key points, and linked entity ids."
+  },
+  {
     id: "technology-official-announcements",
     feedType: "technology_announcements",
     provider: "Official company technology sources",

@@ -18,6 +18,7 @@
     "validate:us-equity": "node scripts/validate-us-equity-prices-adapter.mjs",
     "validate:us-options": "node scripts/validate-us-options-adapter.mjs",
     "validate:official-news": "node scripts/validate-official-company-news-adapter.mjs",
+    "validate:licensed-transcripts": "node scripts/validate-licensed-transcripts-adapter.mjs",
     "ingest:scheduled": "node server/ingestion/runner.js --scheduled"
   },
   "dependencies": {

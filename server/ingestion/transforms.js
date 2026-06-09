@@ -167,7 +167,8 @@ function transformMeetingRecord(raw) {
       linked_company_ids: linked.linkedCompanyIds,
       linked_industry_ids: linked.linkedIndustryIds,
       linked_technology_ids: linked.linkedTechnologyIds,
-      source_ids: arrayValue(valueFrom(raw, "sourceIds", "source_ids", "sourceId", "source_id"))
+      source_ids: arrayValue(valueFrom(raw, "sourceIds", "source_ids", "sourceId", "source_id")),
+      captured_at: compact(valueFrom(raw, "capturedAt", "captured_at", "sourceTimestamp", "source_timestamp")) || null
     }
   };
 }

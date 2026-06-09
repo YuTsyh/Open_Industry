@@ -120,6 +120,17 @@ function coveredUsCompanies() {
     .filter(company => company.ticker);
 }
 
+function coveredTranscriptCompanies() {
+  return Object.entries(companies)
+    .map(([companyId, company]) => ({
+      companyId,
+      ticker: compact(company.ticker).toUpperCase(),
+      name: company.name,
+      industryIds: Object.keys(company.industryExposures || {})
+    }))
+    .filter(company => company.ticker);
+}
+
 function usEquityMaxQuotesPerCompany(env = {}) {
   const parsed = Number(env.US_EQUITY_MAX_QUOTES_PER_COMPANY);
   if (!Number.isFinite(parsed) || parsed <= 0) return 5;
@@ -433,6 +444,16 @@ function recordValue(row = {}, ...keys) {
   return "";
 }
 
+function recordList(row = {}, ...keys) {
+  const value = recordValue(row, ...keys);
+  if (Array.isArray(value)) return value.map(compact).filter(Boolean);
+  if (value == null || value === "") return [];
+  return String(value)
+    .split(/\r?\n|;/)
+    .map(compact)
+    .filter(Boolean);
+}
+
 async function fetchUsEquityJson({ fetchImpl = globalThis.fetch, contract, env, ticker, limit }) {
   const url = withQuery(compact(env.US_EQUITY_DATA_BASE_URL), {
     [usEquityTickerParam(env)]: ticker,
@@ -512,6 +533,118 @@ export async function fetchUsEquityDailyPrices({
   return {
     status: "delayed",
     latestSourceTimestamp: responseTimestamps.filter(Boolean).sort().at(-1) || null,
+    records
+  };
+}
+
+function transcriptMaxItemsPerCompany(env = {}) {
+  const parsed = Number(env.MEETING_TRANSCRIPTS_MAX_ITEMS_PER_COMPANY);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 3;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function transcriptTickerParam(env = {}) {
+  return compact(env.MEETING_TRANSCRIPTS_TICKER_PARAM) || "ticker";
+}
+
+function transcriptRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of ["transcripts", "meetings", "rows", "items", "results", "data"]) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return tableRows(payload);
+}
+
+function transcriptMeetingType(value) {
+  const normalized = compact(value).toLowerCase();
+  const allowed = new Set(["earnings_call", "technology_conference", "investor_day", "supplier_briefing", "other"]);
+  return allowed.has(normalized) ? normalized : "other";
+}
+
+async function fetchTranscriptJson({ fetchImpl = globalThis.fetch, contract, env, ticker, limit }) {
+  const url = withQuery(compact(env.MEETING_TRANSCRIPTS_API_BASE_URL), {
+    [transcriptTickerParam(env)]: ticker,
+    limit
+  });
+  const response = await fetchImpl(url, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${compact(env.MEETING_TRANSCRIPTS_API_KEY)}`
+    }
+  });
+  if (!response?.ok) {
+    throw new Error(`${contract.provider} returned HTTP ${response?.status || "unknown"} for ticker ${ticker}`);
+  }
+
+  return {
+    payload: await response.json(),
+    sourceTimestamp: responseDate(response)
+  };
+}
+
+export async function fetchLicensedTranscripts({
+  contract,
+  env = {},
+  fetchImpl = globalThis.fetch,
+  now = () => new Date()
+} = {}) {
+  const baseUrl = compact(env.MEETING_TRANSCRIPTS_API_BASE_URL);
+  const apiKey = compact(env.MEETING_TRANSCRIPTS_API_KEY);
+  if (!baseUrl) throw new Error("MEETING_TRANSCRIPTS_API_BASE_URL is required for licensed transcript ingestion");
+  if (!apiKey) throw new Error("MEETING_TRANSCRIPTS_API_KEY is required for licensed transcript ingestion");
+
+  const maxItems = transcriptMaxItemsPerCompany(env);
+  const records = [];
+  const responseTimestamps = [];
+
+  for (const company of coveredTranscriptCompanies()) {
+    const { payload, sourceTimestamp } = await fetchTranscriptJson({
+      fetchImpl,
+      contract,
+      env,
+      ticker: company.ticker,
+      limit: maxItems
+    });
+    const responseTimestamp = sourceTimestamp || now().toISOString();
+    responseTimestamps.push(responseTimestamp);
+
+    for (const row of transcriptRows(payload).slice(0, maxItems)) {
+      const title = compact(recordValue(row, "title", "headline", "eventTitle", "event_title"));
+      const heldAt = compact(recordValue(row, "heldAt", "held_at", "publishedAt", "published_at", "date"));
+      const sourceUrl = compact(recordValue(row, "sourceUrl", "source_url", "url"));
+      const transcriptUrl = compact(recordValue(row, "transcriptUrl", "transcript_url", "transcript"));
+      if (!title || (!sourceUrl && !transcriptUrl)) continue;
+
+      records.push({
+        feedType: "meetings",
+        provider: contract.provider,
+        companyId: company.companyId,
+        meetingType: transcriptMeetingType(recordValue(row, "meetingType", "meeting_type", "type", "eventType", "event_type")),
+        title,
+        heldAt: heldAt || null,
+        sourceUrl: sourceUrl || transcriptUrl,
+        transcriptUrl,
+        summary: compact(recordValue(row, "summary", "abstract", "description")),
+        keyPoints: recordList(row, "keyPoints", "key_points", "highlights"),
+        companyIds: Array.from(new Set([company.companyId, ...recordList(row, "companyIds", "company_ids")])),
+        industryIds: recordList(row, "industryIds", "industry_ids").length
+          ? recordList(row, "industryIds", "industry_ids")
+          : company.industryIds,
+        technologyIds: recordList(row, "technologyIds", "technology_ids"),
+        sourceIds: recordList(row, "sourceIds", "source_ids", "sourceId", "source_id").length
+          ? recordList(row, "sourceIds", "source_ids", "sourceId", "source_id")
+          : ["licensedTranscripts"],
+        capturedAt: compact(recordValue(row, "capturedAt", "captured_at", "sourceTimestamp", "source_timestamp")) || responseTimestamp,
+        sourceTimestamp: responseTimestamp
+      });
+    }
+  }
+
+  return {
+    status: "licensed",
+    latestSourceTimestamp: records.map(record => record.sourceTimestamp).filter(Boolean).sort().at(-1) ||
+      responseTimestamps.filter(Boolean).sort().at(-1) ||
+      null,
     records
   };
 }
@@ -982,6 +1115,7 @@ export async function fetchSecEdgarFilings({
 }
 
 export const providerAdapterRegistry = {
+  "licensed-transcripts": fetchLicensedTranscripts,
   "official-company-news": fetchOfficialCompanyNews,
   "us-options": fetchUsOptionsChain,
   "us-equity-prices": fetchUsEquityDailyPrices,

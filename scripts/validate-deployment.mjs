@@ -28,7 +28,9 @@ for (const key of [
   "US_EQUITY_DATA_BASE_URL",
   "US_EQUITY_DATA_API_KEY",
   "US_OPTIONS_DATA_BASE_URL",
-  "US_OPTIONS_DATA_API_KEY"
+  "US_OPTIONS_DATA_API_KEY",
+  "MEETING_TRANSCRIPTS_API_BASE_URL",
+  "MEETING_TRANSCRIPTS_API_KEY"
 ]) {
   assert.match(envExample, new RegExp(`^${key}=$`, "m"), `.env.example should list ${key} without a committed value`);
 }

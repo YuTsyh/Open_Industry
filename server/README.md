@@ -47,6 +47,7 @@ Current executable API scaffold:
 - `TDNET_API_BASE_URL` and `TDNET_API_KEY` are required when enabling `jpx-disclosures`; use a contracted JPX TDnet API endpoint, not the public browser search page
 - `US_EQUITY_DATA_BASE_URL` and `US_EQUITY_DATA_API_KEY` are required when enabling `us-equity-prices`; use a subscribed Nasdaq Data Link endpoint and keep the API key out of URLs/logs
 - `US_OPTIONS_DATA_BASE_URL` and `US_OPTIONS_DATA_API_KEY` are required when enabling `us-options`; use a subscribed Cboe/OCC or licensed options endpoint and keep the API key out of URLs/logs
+- `MEETING_TRANSCRIPTS_API_BASE_URL` and `MEETING_TRANSCRIPTS_API_KEY` are required when enabling `licensed-transcripts`; use a licensed earnings-call, investor-day, or conference transcript API and keep the API key out of URLs/logs
 - `node scripts/validate-api.mjs` verifies live-data endpoints, provider status metadata, JWT-protected notes, and local note persistence
 - `node scripts/validate-deployment.mjs` verifies the production environment contract without printing secret values
 - `node scripts/validate-postgres-store.mjs` verifies PostgreSQL table reads are mapped into the live API contract
@@ -64,6 +65,7 @@ Current executable API scaffold:
 - The scheduled adapter registry includes `mops-filings-events`, which reads TWSE/MOPS daily material-information OpenAPI rows, keeps only covered TW companies, and stores source-backed filing cards
 - The scheduled adapter registry includes `sec-edgar-filings`, which reads SEC's official ticker/CIK mapping and public submissions API, then stores covered U.S. company filings with accession URLs and source timestamps
 - The scheduled adapter registry includes `official-company-news`, which fetches source-backed official company news, product, and IR pages from `officialSources.js`, then writes linked `news_events` with summaries, providers, source ids, and timestamps
+- The scheduled adapter registry includes `licensed-transcripts`, which reads a licensed transcript API for covered company tickers and stores earnings-call, investor-day, or technology-conference summaries with key points and transcript links
 - The scheduled adapter registry currently includes `technology-official-announcements`, which fetches public official source pages from `officialSources.js`, parses source-backed titles/summaries, and maps them to linked company, industry, and technology ids
 - `GET /api/ingestion/status` exposes monitoring summary, warning alerts for skipped licensed providers, recent runs, and feed statuses
 - Frontend API mode: open the static app with `?api=http://127.0.0.1:8787`; notes require `localStorage.setItem("industrytopo.jwt", "<jwt>")`
