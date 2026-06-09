@@ -780,6 +780,11 @@ assert.ok(
   "global search input should expose combobox ARIA wiring"
 );
 assert.ok(
+  appJs.includes('addEventListener("hashchange"') &&
+    appJs.includes("routeFromHash()"),
+  "app shell should respond to direct hash route changes without a full page reload"
+);
+assert.ok(
   appCss.includes(".summary-title .muted") &&
     appCss.includes("overflow-wrap: anywhere") &&
     appCss.includes(".role-chip"),

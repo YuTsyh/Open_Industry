@@ -27,8 +27,12 @@ const searchSuggestions = document.querySelector("#searchSuggestions");
 
 const defaultIndustry = "advanced-packaging";
 
+function routeFromHash() {
+  return location.hash.replace("#", "") || "overview";
+}
+
 const state = {
-  route: location.hash.replace("#", "") || "overview",
+  route: routeFromHash(),
   industryId: defaultIndustry,
   techId: "cowos",
   companyId: "tsmc",
@@ -854,6 +858,16 @@ document.addEventListener("keydown", event => {
     }
     closeDrawer();
   }
+});
+
+window.addEventListener("hashchange", () => {
+  const route = routeFromHash();
+  if (route === state.route) return;
+  state.route = route;
+  state.pinnedRelation = "";
+  closeDrawer();
+  render();
+  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 });
 
 render();
