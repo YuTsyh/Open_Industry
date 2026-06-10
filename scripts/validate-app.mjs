@@ -1176,7 +1176,15 @@ const apiCompanyNewsHtml = renderRoute({
           reason: "Listed options coverage is not available for this company in the configured provider set.",
           licenseBoundary: "Options chain, open interest, volume, and greeks must come from OCC, Cboe, or another licensed vendor through backend ingestion."
         },
-        providerStatuses: [{ feedType: "options", provider: "Cboe/OCC licensed options slot", status: "provider-ready" }]
+        providerStatuses: [
+          {
+            feedType: "options",
+            provider: "Cboe/OCC licensed options slot",
+            status: "provider-ready",
+            latestSourceTimestamp: "2026-06-08T02:00:00Z",
+            latestSuccessAt: "2026-06-08T02:05:00Z"
+          }
+        ]
       }
     }
   }
@@ -1193,6 +1201,11 @@ assert.ok(
   "meeting transcript panel should show provider update and source freshness timing"
 );
 assert.ok(apiCompanyNewsHtml.includes("Cboe/OCC licensed options slot"), "options panel should show licensed provider freshness status");
+assert.ok(
+  apiCompanyNewsHtml.includes("Updated: 2026-06-08T02:05:00Z") &&
+    apiCompanyNewsHtml.includes("Source time: 2026-06-08T02:00:00Z"),
+  "options panel should show provider update and source freshness timing"
+);
 assert.ok(apiCompanyNewsHtml.includes("not-available"), "options panel should show explicit availability status");
 assert.ok(apiCompanyNewsHtml.includes("Listed options coverage is not available"), "options panel should explain options availability reason");
 assert.ok(apiCompanyNewsHtml.includes("open interest, volume, and greeks"), "options panel should show licensed options boundary");

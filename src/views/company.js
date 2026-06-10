@@ -336,9 +336,7 @@ function renderOptionsPanel(optionsPayload = {}) {
           <span class="tag">${escapeHtml(availability.market || optionsPayload.underlying?.market || "options")}</span>
         </div>
       ` : ""}
-      <div class="source-row">
-        ${providerStatuses.length ? providerStatuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "options")} - ${escapeHtml(item.status || "provider-ready")}</span>`).join("") : `<span class="tag">licensed vendor required</span>`}
-      </div>
+      ${providerStatuses.length ? providerStatusRows(providerStatuses) : `<div class="source-row"><span class="tag">licensed vendor required</span></div>`}
       <p class="small">${escapeHtml(licenseBoundary)}</p>
     </article>
   `;
