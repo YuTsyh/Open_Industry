@@ -105,6 +105,7 @@ strong { font-weight: 750; }
   background: var(--surface);
   padding: 0 14px;
 }
+.tab-button { white-space: nowrap; flex: 0 0 auto; }
 .icon-button { width: 38px; padding: 0; display: grid; place-items: center; font-size: 18px; }
 .route-button.active, .pill-button.primary, .login-button, .view-button.active, .tab-button.active {
   color: var(--active-fg);

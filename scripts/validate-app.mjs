@@ -977,6 +977,10 @@ assert.ok(
     appCss.includes(".api-live-status .mini-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }"),
   "API live status card should use a scan-friendly multi-column desktop layout"
 );
+assert.ok(
+  appCss.includes(".tab-button { white-space: nowrap; flex: 0 0 auto; }"),
+  "company tab labels should stay on one line and use horizontal scrolling on narrow screens"
+);
 assert.ok(apiCompanyHtml.includes("note-visibility") && apiCompanyHtml.includes("data-save-note"), "notes tab should expose visibility and save controls");
 assert.ok(apiCompanyHtml.includes("data-note-collaborators"), "notes tab should expose collaborator controls for shared research notes");
 assert.ok(apiCompanyHtml.includes("data-update-note-collaborators"), "owner notes should expose collaborator update controls");
