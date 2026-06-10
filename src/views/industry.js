@@ -7,6 +7,7 @@ import { topologyBoard } from "../components/maps.js";
 import { crossIndustryPanel } from "../components/crossIndustry.js";
 import { officialEvidencePanel } from "../components/officialEvidence.js";
 import { notesKey, renderNotesPanel } from "../components/notesPanel.js";
+import { providerStatusRows } from "../components/providerStatus.js";
 
 export function renderIndustry(state, industry) {
   const tab = state.industryTab;
@@ -187,9 +188,7 @@ function renderApiIndustryEvents(payload = {}) {
         ${news.map(item => industryEventCard(item, "news")).join("")}
         ${filings.map(item => industryEventCard(item, "filing")).join("")}
       </div>
-      <div class="source-row">
-        ${statuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "provider")} · ${escapeHtml(item.status || "provider-ready")}</span>`).join("")}
-      </div>
+      ${providerStatusRows(statuses)}
     </section>
   `;
 }

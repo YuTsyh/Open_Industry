@@ -1293,7 +1293,13 @@ const apiIndustryNewsHtml = renderRoute({
           { title: "Supplier capacity filing", summary: "Filing card summary.", sourceUrl: "https://example.com/industry-filing", publishedAt: "2026-05-22" }
         ],
         providerStatuses: [
-          { feedType: "news", provider: "MOPS", status: "provider-ready" }
+          {
+            feedType: "news",
+            provider: "MOPS",
+            status: "provider-ready",
+            latestSourceTimestamp: "2026-06-08T01:00:00Z",
+            latestSuccessAt: "2026-06-08T01:05:00Z"
+          }
         ]
       }
     }
@@ -1301,6 +1307,13 @@ const apiIndustryNewsHtml = renderRoute({
 });
 assert.ok(apiIndustryNewsHtml.includes("industry-event-card"), "industry news tab should render API event cards");
 assert.ok(apiIndustryNewsHtml.includes("Advanced packaging supply update") && apiIndustryNewsHtml.includes("Supplier capacity filing"), "industry news tab should render news and filings cards");
+assert.ok(
+  apiIndustryNewsHtml.includes("MOPS") &&
+    apiIndustryNewsHtml.includes("provider-ready") &&
+    apiIndustryNewsHtml.includes("Updated: 2026-06-08T01:05:00Z") &&
+    apiIndustryNewsHtml.includes("Source time: 2026-06-08T01:00:00Z"),
+  "industry news tab should show provider update and source freshness timing"
+);
 
 const explorerHtml = renderRoute({ ...requiredState, route: "explorer" });
 assert.ok(
