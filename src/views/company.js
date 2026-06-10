@@ -5,6 +5,7 @@ import { confidenceBadge, marketBadge, techBadge } from "../components/badges.js
 import { relationshipGraph } from "../components/maps.js";
 import { companyLiveFeedPanel } from "../components/liveFeeds.js";
 import { notesKey, renderNotesPanel } from "../components/notesPanel.js";
+import { providerStatusRows } from "../components/providerStatus.js";
 import { priceSparkline } from "../components/sparklines.js";
 
 function sourceTags(keys = []) {
@@ -273,7 +274,7 @@ function renderMeetingPanel(meetings = [], providerStatuses = []) {
           </div>
         `).join("") : `<div class="mini-row"><span>No meeting transcript loaded yet.</span><span class="tag">provider-ready</span></div>`}
       </div>
-      ${providerStatuses.length ? `<div class="source-row">${providerStatuses.map(item => `<span class="tag">${escapeHtml(item.provider || item.feedType || "meetings")} · ${escapeHtml(item.status || "provider-ready")}</span>`).join("")}</div>` : ""}
+      ${providerStatusRows(providerStatuses)}
     </article>
   `;
 }

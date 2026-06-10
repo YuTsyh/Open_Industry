@@ -772,6 +772,15 @@ const apiTechnologyHtml = renderRoute({
             sourceUrl: "https://example.com/tech",
             provider: "TSMC 3DFabric"
           }
+        ],
+        providerStatuses: [
+          {
+            feedType: "technology_announcements",
+            provider: "official technology sources",
+            status: "licensed",
+            latestSourceTimestamp: "2026-06-09T04:00:00Z",
+            latestSuccessAt: "2026-06-09T04:05:00Z"
+          }
         ]
       }
     }
@@ -780,6 +789,13 @@ const apiTechnologyHtml = renderRoute({
 assert.ok(apiTechnologyHtml.includes("technology-announcements"), "technology detail should render announcements section");
 assert.ok(apiTechnologyHtml.includes("3DFabric platform update"), "technology announcements should render API items");
 assert.ok(apiTechnologyHtml.includes("https://example.com/tech"), "technology announcements should keep source links");
+assert.ok(
+  apiTechnologyHtml.includes("official technology sources") &&
+    apiTechnologyHtml.includes("licensed") &&
+    apiTechnologyHtml.includes("Updated: 2026-06-09T04:05:00Z") &&
+    apiTechnologyHtml.includes("Source time: 2026-06-09T04:00:00Z"),
+  "technology announcements should show provider freshness metadata"
+);
 
 const companyHtml = renderRoute({ ...requiredState, route: "company" });
 assert.ok(
@@ -1140,7 +1156,15 @@ const apiCompanyNewsHtml = renderRoute({
         items: [
           { title: "Technology conference transcript", summary: "Management discussed advanced packaging constraints.", sourceUrl: "https://example.com/meeting", transcriptUrl: "https://example.com/transcript", keyPoints: ["CoWoS demand", "HBM constraints"] }
         ],
-        providerStatuses: [{ feedType: "meetings", provider: "licensed transcript provider", status: "provider-ready" }]
+        providerStatuses: [
+          {
+            feedType: "meetings",
+            provider: "licensed transcript provider",
+            status: "provider-ready",
+            latestSourceTimestamp: "2026-06-08T03:00:00Z",
+            latestSuccessAt: "2026-06-08T03:06:00Z"
+          }
+        ]
       }
     },
     companyOptions: {
@@ -1163,6 +1187,11 @@ assert.ok(apiCompanyNewsHtml.includes("Options Chain"), "company news tab should
 assert.ok(apiCompanyNewsHtml.includes("CoWoS capacity update") && apiCompanyNewsHtml.includes("Monthly revenue filing"), "company news tab should show news and filings");
 assert.ok(apiCompanyNewsHtml.includes("https://example.com/transcript"), "meeting transcript panel should keep transcript links separate from source cards");
 assert.ok(apiCompanyNewsHtml.includes("licensed transcript provider") && apiCompanyNewsHtml.includes("provider-ready"), "meeting transcript panel should show provider freshness status");
+assert.ok(
+  apiCompanyNewsHtml.includes("Updated: 2026-06-08T03:06:00Z") &&
+    apiCompanyNewsHtml.includes("Source time: 2026-06-08T03:00:00Z"),
+  "meeting transcript panel should show provider update and source freshness timing"
+);
 assert.ok(apiCompanyNewsHtml.includes("Cboe/OCC licensed options slot"), "options panel should show licensed provider freshness status");
 assert.ok(apiCompanyNewsHtml.includes("not-available"), "options panel should show explicit availability status");
 assert.ok(apiCompanyNewsHtml.includes("Listed options coverage is not available"), "options panel should explain options availability reason");

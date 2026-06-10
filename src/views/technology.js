@@ -12,6 +12,7 @@ import {
 } from "../components/technologyDetails.js";
 import { officialTechnologySources } from "../components/officialEvidence.js";
 import { liveDataReadinessPanel } from "../components/liveFeeds.js";
+import { providerStatusRows } from "../components/providerStatus.js";
 
 function techFor(id) {
   return technologyCatalog[id] || technologyCatalog.cowos;
@@ -20,6 +21,7 @@ function techFor(id) {
 function renderTechnologyAnnouncements(state) {
   const payload = state.api?.technologyAnnouncements?.[state.techId] || {};
   const items = payload.items || [];
+  const providerStatuses = payload.providerStatuses || [];
   return `
     <section class="panel technology-announcements">
       <div class="panel-header">
@@ -45,6 +47,7 @@ function renderTechnologyAnnouncements(state) {
           </article>
         `}
       </div>
+      ${providerStatusRows(providerStatuses)}
     </section>
   `;
 }

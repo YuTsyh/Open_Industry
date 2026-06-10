@@ -2,6 +2,7 @@ import { liveFeedProviders, liveFeedRoadmap, officialSources } from "../data.js"
 import { formatPriceSnapshot } from "../domain/companyMetrics.js";
 import { escapeHtml } from "../utils.js";
 import { confidenceBadge } from "./badges.js";
+import { providerStatusRows } from "./providerStatus.js";
 
 function sourceLinks(keys = []) {
   return keys
@@ -9,23 +10,6 @@ function sourceLinks(keys = []) {
     .filter(Boolean)
     .map(source => `<a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}</a>`)
     .join("");
-}
-
-function statusUpdateTime(item = {}) {
-  return item.updatedAt || item.latestSuccessAt || item.latestSourceTimestamp || "No update timestamp yet";
-}
-
-function statusSourceTime(item = {}) {
-  return item.latestSourceTimestamp || "No source timestamp yet";
-}
-
-function formatFeedType(type = "feed") {
-  const words = type
-    .split("_")
-    .filter(Boolean)
-    .map(part => part.toLowerCase());
-  if (!words.length) return "Feed";
-  return [`${words[0].slice(0, 1).toUpperCase()}${words[0].slice(1)}`, ...words.slice(1)].join(" ");
 }
 
 function priceSnapshotCard(snapshot = {}) {
@@ -57,19 +41,7 @@ function apiLiveStatusPanel(apiLive = {}) {
         <strong>API provider status</strong>
         <span class="tag">REST</span>
       </div>
-      <div class="mini-list">
-        ${statuses.map(item => `
-          <div class="mini-row">
-            <span>
-              <strong>${escapeHtml(formatFeedType(item.feedType))}</strong><br>
-              <small>${escapeHtml(item.provider || "provider slot")}</small><br>
-              <small>Updated: ${escapeHtml(statusUpdateTime(item))}</small><br>
-              <small>Source time: ${escapeHtml(statusSourceTime(item))}</small>
-            </span>
-            <span class="tag" title="${escapeHtml(`Updated: ${statusUpdateTime(item)} / Source time: ${statusSourceTime(item)}`)}">${escapeHtml(item.status || "provider-ready")}</span>
-          </div>
-        `).join("")}
-      </div>
+      ${providerStatusRows(statuses)}
     </article>
   `;
 }
