@@ -342,6 +342,14 @@ function renderOptionsPanel(optionsPayload = {}) {
   `;
 }
 
+function eventProviderStatuses(apiLive = {}, companySignals = {}) {
+  const eventFeedTypes = new Set(["news", "filing", "filings", "company-signals"]);
+  return [
+    ...(apiLive.feedStatuses || []).filter(item => eventFeedTypes.has(item.feedType)),
+    ...(companySignals.providerStatuses || [])
+  ];
+}
+
 function renderNewsTab(company, state = {}) {
   const snapshot = company.liveFeeds?.priceSnapshot || {};
   const companyId = state.companyId || "tsmc";
@@ -357,6 +365,7 @@ function renderNewsTab(company, state = {}) {
     ...[...(apiLive.latestNews || []), ...(companySignals.news || [])].map(item => ({ ...item, type: "news" })),
     ...[...(apiLive.latestFilings || []), ...(companySignals.filings || [])].map(item => ({ ...item, type: "filing" }))
   ];
+  const providerStatuses = eventProviderStatuses(apiLive, companySignals);
   if (events.length || meetings.length || optionsPayload.chain?.length || optionsPayload.providerStatuses?.length) {
     return `
       <div class="overview-grid">
@@ -366,6 +375,7 @@ function renderNewsTab(company, state = {}) {
           <div class="timeline">
             ${events.length ? events.map(item => eventCard(item, item.type)).join("") : `<div class="timeline-step"><strong>No events loaded yet</strong><span class="small">provider-ready</span></div>`}
           </div>
+          ${providerStatusRows(providerStatuses)}
         </article>
         ${renderMeetingPanel(meetings, meetingPayload.providerStatuses || [])}
         ${renderOptionsPanel(optionsPayload)}

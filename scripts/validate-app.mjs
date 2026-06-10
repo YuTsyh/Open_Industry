@@ -1223,6 +1223,22 @@ const apiCompanySignalNewsHtml = renderRoute({
         ],
         filings: [
           { title: "Search-loaded filing", extractedSummary: "Search-loaded filing event.", sourceUrl: "https://example.com/search-filing", publishedAt: "2026-05-22" }
+        ],
+        providerStatuses: [
+          {
+            feedType: "news",
+            provider: "official IR",
+            status: "provider-ready",
+            latestSourceTimestamp: "2026-06-09T01:00:00Z",
+            latestSuccessAt: "2026-06-09T01:04:00Z"
+          },
+          {
+            feedType: "filings",
+            provider: "MOPS filings",
+            status: "delayed",
+            latestSourceTimestamp: "2026-06-08T02:00:00Z",
+            latestSuccessAt: "2026-06-08T02:06:00Z"
+          }
         ]
       }
     }
@@ -1232,6 +1248,19 @@ assert.ok(
   apiCompanySignalNewsHtml.includes("Search-loaded CoWoS news") &&
     apiCompanySignalNewsHtml.includes("Search-loaded filing"),
   "company news tab should render companySignals loaded by global search"
+);
+assert.ok(
+  apiCompanySignalNewsHtml.includes("official IR") &&
+    apiCompanySignalNewsHtml.includes("Updated: 2026-06-09T01:04:00Z") &&
+    apiCompanySignalNewsHtml.includes("Source time: 2026-06-09T01:00:00Z") &&
+    apiCompanySignalNewsHtml.includes("MOPS filings") &&
+    apiCompanySignalNewsHtml.includes("Updated: 2026-06-08T02:06:00Z") &&
+    apiCompanySignalNewsHtml.includes("Source time: 2026-06-08T02:00:00Z"),
+  "company news tab should show provider freshness for API-loaded news and filings"
+);
+assert.ok(
+  appJs.includes('state.route === "company" && state.companyId === companyId && state.companyTab === "news"'),
+  "company signal refresh should re-render the company News tab when API news and filings arrive"
 );
 assert.ok(
   appJs.includes("fetchOptions") &&

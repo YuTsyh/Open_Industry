@@ -263,6 +263,7 @@ async function refreshCompanySignals(companyId) {
   }
   delete state.api.pending[key];
   if (state.route === "industry" && state.industryTab === "landscape") render();
+  if (state.route === "company" && state.companyId === companyId && state.companyTab === "news") render();
   refreshSearchSuggestions();
 }
 
