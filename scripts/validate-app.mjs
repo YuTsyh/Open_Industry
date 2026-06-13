@@ -570,7 +570,7 @@ for (const [id, company] of Object.entries(companyRegistry.companies)) {
 }
 
 const techIds = [...new Set(Object.values(technologyMenus).flat())];
-const representativeTechIds = ["cowos", "gpu-platform", "deposition-etch", "liquid-cooling", "hbm-integration", "800g-optical"];
+const representativeTechIds = ["cowos", "hybrid-bonding", "gpu-platform", "deposition-etch", "liquid-cooling", "hbm-integration", "800g-optical"];
 const authoredStepDetailIds = techIds.filter(id => (technologyCatalog[id].processDetails || []).length >= (technologyCatalog[id].process || []).length);
 assert.equal(
   authoredStepDetailIds.length,
@@ -578,10 +578,17 @@ assert.equal(
   "only explicitly authored representative technologies should count as authored step detail coverage"
 );
 for (const id of representativeTechIds) {
+  const details = technologyCatalog[id].processDetails || [];
   assert.ok(
-    (technologyCatalog[id].processDetails || []).length >= (technologyCatalog[id].process || []).length,
+    details.length >= (technologyCatalog[id].process || []).length,
     `${id} should include authored step-level research detail`
   );
+  for (const [index, detail] of details.entries()) {
+    assert.ok(
+      detail.why && detail.materials && detail.constraints && detail.companies,
+      `${id} step ${index + 1} should explain why the step matters, required material evidence, constraints, and mapped companies`
+    );
+  }
 }
 for (const id of techIds) {
   const html = technologyProcessFlow(technologyCatalog[id]);

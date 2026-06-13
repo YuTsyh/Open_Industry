@@ -79,6 +79,44 @@ export const technologyCatalog = {
     summary: "Hybrid bonding / SoIC 透過晶片直接鍵合提升 3D 整合密度，是高階異質整合的重要路徑。",
     technicalNotes: "重點在表面平整度、潔淨度、對位精度、bonding yield、檢測密度與 thermal-mechanical reliability。",
     process: ["Surface prep", "Wafer / die alignment", "Hybrid bond", "Anneal", "Inspection", "Reliability test"],
+    processDetails: [
+      {
+        why: "Surface preparation controls oxide quality, particles and activation, so it determines whether later bonding yield is realistic.",
+        materials: "Wafer surface condition, cleaning chemistry, plasma activation recipe, particle maps and surface roughness data.",
+        constraints: "Particle control and oxide consistency limit bonding yield before alignment or anneal can help.",
+        companies: "Foundry: TSMC (2330.TW) / Materials: Shin-Etsu Chemical (4063.T)."
+      },
+      {
+        why: "Wafer or die alignment sets the interconnect pitch window for 3D stacking and advanced package density.",
+        materials: "Alignment marks, overlay data, bonding tool accuracy, die placement plan and thermal expansion assumptions.",
+        constraints: "Pitch shrink raises placement tolerance requirements and can slow throughput during qualification.",
+        companies: "Equipment: Tokyo Electron (8035.T) / Foundry: TSMC (2330.TW)."
+      },
+      {
+        why: "The hybrid bond step turns prepared surfaces into electrical and mechanical interconnects; failures here directly cap usable stacked output.",
+        materials: "Bonding pressure, tool uptime, surface activation history, wafer flatness and bond interface metrology.",
+        constraints: "Bond voids, contamination and tool throughput decide whether the process can move from pilot to volume.",
+        companies: "Foundry: TSMC (2330.TW) / Equipment: Tokyo Electron (8035.T)."
+      },
+      {
+        why: "Anneal strengthens the bond and stabilizes interconnect resistance, linking process control to long-term device reliability.",
+        materials: "Thermal budget, anneal profile, copper diffusion data, stress model and post-bond resistance readings.",
+        constraints: "Thermal stress and materials compatibility can damage stacked structures or reduce reliability margin.",
+        companies: "Materials: Shin-Etsu Chemical (4063.T) / Foundry: TSMC (2330.TW)."
+      },
+      {
+        why: "Inspection finds buried voids, overlay errors and interface defects early enough to protect expensive downstream package capacity.",
+        materials: "Optical/e-beam inspection, acoustic or X-ray data, defect classification and process-control feedback.",
+        constraints: "Inspection sensitivity and throughput must scale with finer pitch without overwhelming the process loop.",
+        companies: "Inspection: KLA (KLAC) / Foundry: TSMC (2330.TW)."
+      },
+      {
+        why: "Reliability testing proves the stack survives thermal cycling, mechanical stress and field-use conditions.",
+        materials: "Thermal cycling, humidity stress, electrical continuity, failure analysis and customer qualification records.",
+        constraints: "Qualification time and failure-analysis feedback can delay adoption even after bonding yield improves.",
+        companies: "Foundry: TSMC (2330.TW) / Customer platforms: AI and memory stack integrators."
+      }
+    ],
     advantages: ["高互連密度", "更短訊號距離", "適合 3D stacking"],
     limits: ["對位與潔淨度要求極高", "良率與檢測時間敏感", "生態系仍在擴張"],
     bottlenecks: [["Alignment", 82, "細 pitch 對位容差小"], ["Surface quality", 76, "污染與粗糙度影響 bonding"], ["Inspection", 69, "缺陷偵測密度提高"], ["Thermal stress", 58, "堆疊後熱/機械可靠性需驗證"]],
@@ -611,6 +649,7 @@ Object.assign(technologyCatalog, {
 
 const authoredStepDetailTechnologyIds = new Set([
   "cowos",
+  "hybrid-bonding",
   "gpu-platform",
   "deposition-etch",
   "liquid-cooling",
