@@ -38,7 +38,7 @@ function renderTechnologyAnnouncements(state) {
             <p class="eyebrow">${escapeHtml(item.provider || "official source")}</p>
             <h3>${escapeHtml(item.title)}</h3>
             <p class="small">${escapeHtml(item.summary || "")}</p>
-            ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(item.sourceUrl)}</a>` : ""}
+            ${item.sourceUrl ? `<a class="tag" href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noreferrer">Source</a>` : ""}
           </article>
         `).join("") : `
           <article class="event-card is-empty">

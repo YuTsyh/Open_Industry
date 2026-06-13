@@ -790,6 +790,23 @@ assert.ok(apiTechnologyHtml.includes("technology-announcements"), "technology de
 assert.ok(apiTechnologyHtml.includes("3DFabric platform update"), "technology announcements should render API items");
 assert.ok(apiTechnologyHtml.includes("https://example.com/tech"), "technology announcements should keep source links");
 assert.ok(
+  apiTechnologyHtml.includes("回到產業地圖") &&
+    apiTechnologyHtml.includes("依產業切換相關技術") &&
+    apiTechnologyHtml.includes("產業") &&
+    apiTechnologyHtml.includes("相關技術") &&
+    apiTechnologyHtml.includes("摘要與研究重點") &&
+    apiTechnologyHtml.includes("技術觀察"),
+  "technology detail should use readable labels for the map action, selector, and summary cards"
+);
+assert.ok(
+  apiTechnologyHtml.includes('href="https://example.com/tech" target="_blank" rel="noreferrer">Source</a>'),
+  "technology announcement source links should keep the URL in href but use compact link text"
+);
+assert.ok(
+  appCss.includes(".panel-header > .tag { flex-shrink: 0; white-space: nowrap; }"),
+  "panel header status badges should stay on one line in narrow cards"
+);
+assert.ok(
   apiTechnologyHtml.includes("official technology sources") &&
     apiTechnologyHtml.includes("licensed") &&
     apiTechnologyHtml.includes("Updated: 2026-06-09T04:05:00Z") &&
